@@ -142,6 +142,10 @@ class MWP_Frontend {
 					<?php self::render_card( $page, $lang ); ?>
 				<?php endforeach; ?>
 			</div>
+
+			<?php if ( 'slider' === $layout ) : ?>
+				<div class="mwp-dots" role="tablist" aria-label="<?php esc_attr_e( 'Choose slide', 'multiwander-packages' ); ?>"></div>
+			<?php endif; ?>
 		</section>
 		<?php
 		return ob_get_clean();

@@ -109,10 +109,12 @@ class MWP_Admin {
 		}
 		?>
 		<p class="mwp-help">
-			<?php esc_html_e( 'One package per line. Paste either the ID or the whole momira.travel address — the ID is picked out automatically.', 'multiwander-packages' ); ?>
+			<strong><?php esc_html_e( 'One Holiday Package ID per line — numbers only.', 'multiwander-packages' ); ?></strong>
+			<?php esc_html_e( 'The order here is the order the offers appear on the page. (If you paste a whole momira.travel address by mistake, the ID is pulled out of it and the list tidies itself when you update.)', 'multiwander-packages' ); ?>
 		</p>
 
-		<textarea name="mwp_package_ids" rows="6" class="large-text code" placeholder="59875907&#10;https://momira.travel/en/idea/62837980/thailand-culinary-journey"><?php echo esc_textarea( $raw ); ?></textarea>
+		<textarea name="mwp_package_ids" rows="6" class="large-text code" spellcheck="false"
+			placeholder="59875907&#10;62837980&#10;56175367"><?php echo esc_textarea( $raw ); ?></textarea>
 
 		<p class="mwp-help">
 			<?php
@@ -256,9 +258,37 @@ class MWP_Admin {
 		// tree under the English parent.
 		$raw    = sanitize_textarea_field( wp_unslash( $_POST['mwp_package_ids'] ) );
 		$source = MWP_Sync::source_country_id( $post_id );
-		update_post_meta( $source, MWP_META_IDS, $raw );
 
-		if ( '' === trim( $raw ) || ! MWP_Client::is_configured() ) {
+		// Normalise to one bare numeric ID per line, so the box always ends up
+		// in the simple form the editor is asked for — and say plainly which
+		// lines could not be read rather than dropping them in silence.
+		$clean    = array();
+		$rejected = array();
+
+		foreach ( preg_split( '/[\r\n]+/', $raw ) as $line ) {
+			$line = trim( $line );
+			if ( '' === $line ) {
+				continue;
+			}
+			$id = mwp_extract_id( $line );
+			if ( '' === $id ) {
+				$rejected[] = $line;
+			} elseif ( ! in_array( $id, $clean, true ) ) {
+				$clean[] = $id;
+			}
+		}
+
+		update_post_meta( $source, MWP_META_IDS, implode( "\n", $clean ) );
+
+		if ( $rejected ) {
+			set_transient(
+				self::NOTICE_TRANSIENT . 'bad_' . get_current_user_id(),
+				$rejected,
+				60
+			);
+		}
+
+		if ( ! $clean || ! MWP_Client::is_configured() ) {
 			return;
 		}
 
@@ -316,6 +346,19 @@ class MWP_Admin {
 	}
 
 	public static function notices() {
+		$bad_key  = self::NOTICE_TRANSIENT . 'bad_' . get_current_user_id();
+		$rejected = get_transient( $bad_key );
+		if ( $rejected ) {
+			delete_transient( $bad_key );
+			echo '<div class="notice notice-warning is-dismissible"><p><strong>' .
+				esc_html__( 'These lines were not a package ID and have been removed:', 'multiwander-packages' ) .
+				'</strong></p><ul style="margin-left:1.5em;list-style:disc">';
+			foreach ( (array) $rejected as $line ) {
+				echo '<li><code>' . esc_html( $line ) . '</code></li>';
+			}
+			echo '</ul><p>' . esc_html__( 'A package ID is a number, for example 59875907. One per line.', 'multiwander-packages' ) . '</p></div>';
+		}
+
 		$key    = self::NOTICE_TRANSIENT . get_current_user_id();
 		$notice = get_transient( $key );
 		if ( ! $notice ) {
