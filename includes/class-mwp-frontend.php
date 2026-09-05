@@ -314,7 +314,7 @@ class MWP_Frontend {
 							<span></span>
 						<?php endif; ?>
 
-						<span class="mwp-pill"><?php echo esc_html( $en ? 'View' : 'Zobacz' ); ?></span>
+						<span class="cta-button mwp-pill"><?php echo esc_html( $en ? 'View' : 'Zobacz' ); ?></span>
 					</div>
 				</div>
 			</a>
@@ -357,7 +357,19 @@ class MWP_Frontend {
 
 		ob_start();
 		self::render_package( $post_id, $data, mwp_current_lang() );
-		return $content . ob_get_clean();
+		$package = ob_get_clean();
+
+		// The package layout comes FIRST and whatever the editor writes in the
+		// page follows it. That way anything added by hand — an FAQ block, a
+		// note, an advisor card — lands underneath the trip details, which is
+		// where extra content belongs on a product page.
+		$extra = trim( $content );
+
+		if ( '' !== $extra ) {
+			$extra = '<div class="mwp mwp-extra">' . $content . '</div>';
+		}
+
+		return $package . $extra;
 	}
 
 	/**
@@ -482,7 +494,7 @@ class MWP_Frontend {
 					<div class="mwp-pricecard">
 						<?php if ( $booking ) : ?>
 							<div class="mwp-actions">
-								<a class="mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<a class="cta-button mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 									<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
 								</a>
 								<a class="mwp-btn" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
@@ -706,7 +718,7 @@ class MWP_Frontend {
 							<?php echo esc_html( $t( 'Zmień terminy, hotele, lotnisko wylotu i długość pobytu w każdym miejscu. Sprawdź aktualną cenę i dostępność w kilka sekund.', 'Change the dates, the hotels, your departure airport and how long you stay in each place. Check live pricing and availability in seconds.' ) ); ?>
 						</p>
 						<?php if ( $booking ) : ?>
-							<a class="mwp-btn mwp-btn-primary mwp-btn-wide" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+							<a class="cta-button mwp-btn mwp-btn-primary mwp-btn-wide" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 								<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
 							</a>
 						<?php endif; ?>

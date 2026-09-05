@@ -23,16 +23,18 @@
 	--mwp-line: var(--border-color, #ddd);
 	--mwp-surface: var(--white, #fff);
 	--mwp-tint: var(--bg-color, #e8f6f3);
-	--mwp-card-accent: #c97a4a;
-	--mwp-card-accent-dark: #a5613b;
+	/* One accent across the plugin: the theme's own CTA colour, so the cards,
+	   chips and buttons match the rest of the site rather than approximating it. */
+	--mwp-card-accent: var(--cta-button-bg, #c2410c);
+	--mwp-card-accent-dark: var(--cta-button-hover, #9a3412);
 	--mwp-card-border: #e7e5e1;
 	--mwp-card-ink: #33373f;
 	--mwp-card-muted: #767a80;
-	--mwp-teal: #17a398;
-	--mwp-teal-dark: #128a81;
+	--mwp-teal: var(--cta-button-bg, #c2410c);
+	--mwp-teal-dark: var(--cta-button-hover, #9a3412);
 	--mwp-ink-chip: #2b3440;
-	--mwp-head: 'Poppins', system-ui, sans-serif;
-	--mwp-body: 'Jost', system-ui, sans-serif;
+	--mwp-head: 'Poppins', sans-serif;   /* as style.css */
+	--mwp-body: 'Jost', sans-serif;      /* as style.css */
 
 	font-family: var(--mwp-body);
 	color: var(--mwp-ink);
@@ -1165,22 +1167,16 @@
 
 .mwp-btn:hover,
 .mwp-btn:focus {
-	border-color: var(--mwp-teal);
-	color: var(--mwp-teal-dark);
-	background: rgba(23, 163, 152, .06);
+	border-color: var(--mwp-card-accent);
+	color: var(--mwp-card-accent-dark);
+	background: rgba(0, 0, 0, .03);
 }
 
+/* Primary action also carries the theme's .cta-button class, so it is the
+   same button the rest of the site uses; only the full-width block behaviour
+   is added here. */
 .mwp-btn-primary {
-	border-color: var(--mwp-teal);
-	background: var(--mwp-teal);
-	color: #fff;
-}
-
-.mwp-btn-primary:hover,
-.mwp-btn-primary:focus {
-	background: var(--mwp-teal-dark);
-	border-color: var(--mwp-teal-dark);
-	color: #fff;
+	border-color: transparent;
 }
 
 .mwp-btn-wide {
@@ -1300,7 +1296,7 @@
 	display: flex;
 	background: #fff;
 	border: 1px solid var(--mwp-card-border);
-	border-radius: 28px;
+	border-radius: calc(var(--mwp-radius) * 2);   /* 16px against the theme's 8px */
 	overflow: hidden;
 	height: 100%;
 	transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
@@ -1344,9 +1340,10 @@
 	top: 16px;
 	left: 16px;
 	padding: 7px 14px;
-	border-radius: 999px;
+	border-radius: var(--mwp-radius);
 	background: var(--mwp-card-accent);
-	color: #fdfcfa;
+	color: var(--cta-button-text, #fff);
+	font-family: var(--mwp-head);
 	font-size: 12.5px;
 	font-weight: 500;
 	letter-spacing: 0;
@@ -1363,17 +1360,19 @@
 
 .mwp-kicker {
 	margin: 0;
+	font-family: var(--mwp-head);
 	font-size: 13px;
-	font-weight: 500;
+	font-weight: 600;
 	color: var(--mwp-card-accent);
 }
 
 .mwp-card-title {
 	margin: 0;
-	font-size: clamp(1.25rem, 2.2vw, 1.6rem);
-	line-height: 1.15;
-	font-weight: 700;
-	letter-spacing: -0.03em;
+	font-family: var(--mwp-head);   /* Poppins, as style.css uses for headings */
+	font-size: clamp(1.15rem, 2vw, 1.45rem);
+	line-height: 1.25;
+	font-weight: 600;               /* style.css tops out at 700; 600 matches its headings */
+	letter-spacing: -0.01em;
 	color: var(--mwp-card-ink);
 }
 
@@ -1410,22 +1409,19 @@
 }
 
 .mwp-price-amount {
-	font-size: clamp(1.35rem, 2.4vw, 1.6rem);
+	font-family: var(--mwp-head);
+	font-size: clamp(1.3rem, 2.2vw, 1.55rem);
 	font-weight: 700;
-	letter-spacing: -0.03em;
+	letter-spacing: -0.01em;
 	color: var(--mwp-card-ink);
 }
 
+/* .cta-button comes from the child theme's style.css — colour, padding,
+   radius and weight all live there, so these buttons are the same object the
+   rest of the site uses. Only what the card layout needs is added here. */
 .mwp-pill {
-	display: inline-block;
-	padding: 11px 20px;
-	border-radius: 999px;
-	background: var(--mwp-card-accent);
-	color: #fdfcfa;
-	font-size: 14px;
-	font-weight: 500;
 	white-space: nowrap;
-	transition: background .25s ease;
+	font-family: var(--mwp-head);
 }
 
 .mwp-card:hover .mwp-pill,
@@ -1441,8 +1437,215 @@
 }
 
 @media (max-width: 600px) {
-	.mwp-card { border-radius: 22px; }
+	.mwp-card { border-radius: var(--mwp-radius); }
 	.mwp-card-body { padding: 20px; }
 	.mwp-card-foot { flex-direction: column; align-items: stretch; gap: 14px; }
 	.mwp-pill { text-align: center; }
+}
+
+/* =================================================================
+   Match the child theme's typography and colours exactly
+   =================================================================
+
+   Taken from style.css rather than approximated:
+
+     body        Jost, line-height 1.6
+     h1–h6       Poppins, weight 600, text-align center, margin-bottom 1.5rem
+     p           1rem
+     --font-size-lg / -md / -sm   1.5rem / 1.125rem / 1rem
+     --text-dark #1f2937   --text-darker #111827   --header-color #333333
+     --border-color #dddddd
+
+   The one deliberate deviation: the theme centres every heading. That reads
+   well for section titles and badly inside a card, where a centred title sits
+   oddly above left-aligned text — so card and itinerary titles are pulled
+   back to the left, and only section headings stay centred.
+   ================================================================= */
+
+.mwp {
+	font-family: 'Jost', sans-serif;
+	line-height: 1.6;
+	color: var(--text-dark, #1f2937);
+}
+
+.mwp p {
+	font-size: var(--font-size-sm, 1rem);
+}
+
+.mwp h2,
+.mwp h3,
+.mwp h4 {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	color: var(--text-darker, #111827);
+}
+
+/* Section headings: centred, like every other heading on the site. */
+.mwp-offers-heading,
+.mwp-section > h2,
+.mwp-final h2 {
+	text-align: center;
+	margin-bottom: 1.5rem;
+}
+
+.mwp-section-intro,
+.mwp-offers-sub {
+	text-align: center;
+}
+
+/* Card and itinerary headings read left, next to their own text. */
+.mwp-card-title,
+.mwp-item-title,
+.mwp-hotel-body h3,
+.mwp-inc h3,
+.mwp-exc h3,
+.mwp-head .mwp-title {
+	text-align: left;
+	margin-bottom: 0;
+}
+
+/* --- Type scale, from the theme's own variables ------------------- */
+
+.mwp-card-title {
+	font-size: var(--font-size-md, 1.125rem);
+	line-height: 1.35;
+	font-weight: 600;
+	letter-spacing: 0;
+}
+
+.mwp-single .mwp-card-title,
+.mwp-duo .mwp-card-title {
+	font-size: var(--font-size-lg, 1.5rem);
+}
+
+.mwp-card-summary,
+.mwp-item-meta,
+.mwp-subline {
+	font-size: var(--font-size-sm, 1rem);
+	line-height: 1.6;
+}
+
+.mwp-kicker {
+	font-size: 0.875rem;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.mwp-price-amount,
+.mwp-bar-amount {
+	font-family: 'Poppins', sans-serif;
+	letter-spacing: 0;
+}
+
+.mwp-price-amount {
+	font-size: var(--font-size-lg, 1.5rem);
+}
+
+.mwp-price-from,
+.mwp-price-per,
+.mwp-price-basis {
+	font-size: 0.875rem;
+}
+
+.mwp-section > h2,
+.mwp-offers-heading {
+	font-size: var(--font-size-lg, 1.5rem);
+}
+
+.mwp-head .mwp-title {
+	font-family: 'Poppins', sans-serif;
+	font-weight: 600;
+	font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+	letter-spacing: 0;
+	color: var(--text-darker, #111827);
+}
+
+.mwp-prose,
+.mwp-item-text {
+	font-size: var(--font-size-sm, 1rem);
+	line-height: 1.6;
+}
+
+/* --- Colours ------------------------------------------------------ */
+
+.mwp-card,
+.mwp-item,
+.mwp-pricecard {
+	border-color: var(--border-color, #ddd);
+}
+
+.mwp-card-summary,
+.mwp-item-meta,
+.mwp-score-note,
+.mwp-subline,
+.mwp-price-from,
+.mwp-price-per,
+.mwp-price-basis,
+.mwp-note,
+.mwp-section-intro,
+.mwp-offers-sub,
+.mwp-item-badge {
+	color: #5b6470;   /* the theme has no muted token; this reads against #1f2937 */
+}
+
+.mwp-card-title,
+.mwp-item-title,
+.mwp-price-amount,
+.mwp-bar-amount {
+	color: var(--text-darker, #111827);
+}
+
+.mwp-chip,
+.mwp-eyebrow,
+.mwp-ribbon {
+	background: var(--cta-button-bg, #c2410c);
+	color: var(--cta-button-text, #fff);
+}
+
+/* Flight rows keep a darker chip so the trip's travel days stand out. */
+.mwp-item-flight .mwp-chip {
+	background: var(--header-color, #333);
+}
+
+.mwp-themes li,
+.mwp-tags li,
+.mwp-includes li {
+	background: var(--bg-color, #e8f6f3);
+	color: var(--text-darker, #111827);
+	border-color: transparent;
+}
+
+.mwp-shot,
+.mwp-hero {
+	border-radius: calc(var(--cta-button-border-radius, 8px) * 1.5);
+}
+
+/* =================================================================
+   Editor content below the package
+   =================================================================
+   Anything written into the page itself renders under the trip details —
+   an FAQ block, a note, an advisor card. Given real breathing room so it
+   reads as its own section rather than trailing off the itinerary.
+   ================================================================= */
+
+.mwp-extra {
+	margin-top: 48px;
+	padding-top: 40px;
+	border-top: 1px solid var(--border-color, #ddd);
+}
+
+.mwp-extra > *:last-child {
+	margin-bottom: 0;
+}
+
+.mwp-extra .faq-container,
+.mwp-extra .containerfaq {
+	margin-top: 0;
+}
+
+@media (max-width: 899px) {
+	.mwp-extra {
+		margin-top: 34px;
+		padding-top: 28px;
+	}
 }

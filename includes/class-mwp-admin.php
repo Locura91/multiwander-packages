@@ -571,7 +571,7 @@ class MWP_Admin {
 						<td>
 							<?php $current = (string) get_option( 'mwp_page_template', '' ); ?>
 							<select id="mwp_page_template" name="mwp_page_template">
-								<option value=""><?php esc_html_e( '— leave each page as it is —', 'multiwander-packages' ); ?></option>
+								<option value=""><?php esc_html_e( '— same as the country page (recommended) —', 'multiwander-packages' ); ?></option>
 								<option value="default" <?php selected( $current, 'default' ); ?>><?php esc_html_e( 'Default template', 'multiwander-packages' ); ?></option>
 								<?php foreach ( wp_get_theme()->get_page_templates( null, 'page' ) as $file => $name ) : ?>
 									<option value="<?php echo esc_attr( $file ); ?>" <?php selected( $current, $file ); ?>>
@@ -580,7 +580,7 @@ class MWP_Admin {
 								<?php endforeach; ?>
 							</select>
 							<span class="mwp-help">
-								<?php esc_html_e( 'Package pages print their own H1 in the hero image. Choose a template that does NOT also display the page title — otherwise every package page has two H1 headings, which weakens it in search. On this theme that is "Page Builder (Transparent Header, Without Title)".', 'multiwander-packages' ); ?>
+								<?php esc_html_e( 'Package pages print their own title and images. A template that ALSO prints the theme\'s featured-image banner shows the same photo twice and produces two H1 headings, which weakens the page in search. Left on the default setting, each package page simply copies its country page\'s template, which is usually what you want.', 'multiwander-packages' ); ?>
 							</span>
 						</td>
 					</tr>

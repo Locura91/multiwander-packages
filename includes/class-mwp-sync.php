@@ -230,6 +230,8 @@ class MWP_Sync {
 		update_post_meta( $post_id, MWP_META_SYNCED, current_time( 'mysql' ) );
 
 		$this->apply_page_template( $post_id );
+		$this->hide_theme_header( $post_id );
+		MWP_SEO::maybe_set_title( $post_id, $data, $lang );
 		MWP_SEO::maybe_set_meta_description( $post_id, $data, $lang );
 		$this->maybe_set_featured_image( $post_id, $data );
 
@@ -248,14 +250,66 @@ class MWP_Sync {
 	 */
 	protected function apply_page_template( $post_id ) {
 		$template = (string) get_option( 'mwp_page_template', '' );
+
+		// Nothing chosen in settings: inherit the country page's template.
+		//
+		// This matters more than it sounds. On the default template the theme
+		// prints a full-width featured-image banner with the page title over
+		// it — so a package page showed the hero photo twice, once as the
+		// theme's banner and again in the plugin's own collage. The country
+		// pages already use a template that prints neither ("Page Builder,
+		// Transparent Header, Without Title"), so following the parent gets
+		// the right result without anyone configuring anything.
 		if ( '' === $template ) {
+			$parent = wp_get_post_parent_id( $post_id );
+			if ( $parent ) {
+				$inherited = (string) get_post_meta( $parent, '_wp_page_template', true );
+				if ( $inherited && 'default' !== $inherited ) {
+					update_post_meta( $post_id, '_wp_page_template', $inherited );
+				}
+			}
 			return;
 		}
+
 		if ( 'default' === $template ) {
 			delete_post_meta( $post_id, '_wp_page_template' );
 			return;
 		}
+
 		update_post_meta( $post_id, '_wp_page_template', $template );
+	}
+
+	/**
+	 * Ask the theme not to print its own featured-image banner or title.
+	 *
+	 * Inspiro stores these as per-page toggles. The exact meta keys differ
+	 * between versions, so every known spelling is set — an unused key is
+	 * harmless, whereas guessing one and being wrong leaves the duplicate
+	 * banner in place. The template inheritance above is the primary fix;
+	 * this is belt and braces for pages left on the default template.
+	 *
+	 * @param int $post_id Post.
+	 * @return void
+	 */
+	protected function hide_theme_header( $post_id ) {
+		if ( ! apply_filters( 'mwp_hide_theme_header', true, $post_id ) ) {
+			return;
+		}
+
+		$keys = array(
+			'inspiro_hide_featured_image',
+			'_inspiro_hide_featured_image',
+			'inspiro_page_hide_featured_image',
+			'hide_featured_image',
+			'inspiro_hide_page_title',
+			'_inspiro_hide_page_title',
+			'inspiro_page_hide_title',
+			'hide_page_title',
+		);
+
+		foreach ( $keys as $key ) {
+			update_post_meta( $post_id, $key, '1' );
+		}
 	}
 
 	/**

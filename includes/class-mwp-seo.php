@@ -18,6 +18,120 @@ class MWP_SEO {
 
 	public static function init() {
 		add_action( 'wp_head', array( __CLASS__, 'json_ld' ), 20 );
+		add_action( 'wp_footer', array( __CLASS__, 'faq_json_ld' ), 20 );
+	}
+
+	/**
+	 * Turn a hand-written FAQ block into FAQPage structured data.
+	 *
+	 * The theme's country pages already mark FAQs up as
+	 *
+	 *     <div class="faq-item">
+	 *       <h3 class="faq-question">…</h3>
+	 *       <p class="faq-answer">…</p>
+	 *     </div>
+	 *
+	 * so the same HTML pasted onto a package page is picked up automatically —
+	 * no shortcode, no second place to maintain the questions.
+	 *
+	 * Worth knowing: Google now shows FAQ rich results only for a narrow set of
+	 * authoritative sites, so treat this as machine-readability for AI answer
+	 * engines and future crawlers rather than a guaranteed search feature. It
+	 * costs nothing and the questions are already written.
+	 *
+	 * Emitted in the footer because it reads the rendered page content.
+	 *
+	 * @return void
+	 */
+	public static function faq_json_ld() {
+		if ( ! is_singular( 'page' ) ) {
+			return;
+		}
+
+		$post = get_post();
+		if ( ! $post || false === strpos( (string) $post->post_content, 'faq-question' ) ) {
+			return;
+		}
+
+		$pairs = self::extract_faqs( $post->post_content );
+		if ( count( $pairs ) < 2 ) {
+			// One lone question is not an FAQ page; don't claim it is.
+			return;
+		}
+
+		$entities = array();
+		foreach ( $pairs as $pair ) {
+			$entities[] = array(
+				'@type'          => 'Question',
+				'name'           => $pair['q'],
+				'acceptedAnswer' => array(
+					'@type' => 'Answer',
+					'text'  => $pair['a'],
+				),
+			);
+		}
+
+		echo "\n" . '<script type="application/ld+json">' .
+			wp_json_encode(
+				array(
+					'@context'   => 'https://schema.org',
+					'@type'      => 'FAQPage',
+					'@id'        => get_permalink( $post ) . '#faq',
+					'mainEntity' => $entities,
+				),
+				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+			) .
+			"</script>\n";
+	}
+
+	/**
+	 * Pull question/answer pairs out of the theme's FAQ markup.
+	 *
+	 * @param string $html Page content.
+	 * @return array<int,array{q:string,a:string}>
+	 */
+	protected static function extract_faqs( $html ) {
+		if ( ! class_exists( 'DOMDocument' ) ) {
+			return array();
+		}
+
+		$html = do_shortcode( $html );
+
+		$doc = new DOMDocument();
+		// Suppress the warnings malformed page HTML would otherwise raise.
+		$previous = libxml_use_internal_errors( true );
+		$doc->loadHTML(
+			'<?xml encoding="UTF-8"><div>' . $html . '</div>',
+			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+		);
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+
+		$xpath = new DOMXPath( $doc );
+
+		$questions = $xpath->query( "//*[contains(concat(' ', normalize-space(@class), ' '), ' faq-question ')]" );
+		$answers   = $xpath->query( "//*[contains(concat(' ', normalize-space(@class), ' '), ' faq-answer ')]" );
+
+		if ( ! $questions || ! $answers ) {
+			return array();
+		}
+
+		$out = array();
+		$n   = min( $questions->length, $answers->length );
+
+		for ( $i = 0; $i < $n; $i++ ) {
+			$q = trim( preg_replace( '/\s+/u', ' ', $questions->item( $i )->textContent ) );
+			$a = trim( preg_replace( '/\s+/u', ' ', $answers->item( $i )->textContent ) );
+
+			if ( '' !== $q && '' !== $a ) {
+				$out[] = array(
+					'q' => $q,
+					'a' => $a,
+				);
+			}
+		}
+
+		return $out;
 	}
 
 	/**
@@ -179,6 +293,56 @@ class MWP_SEO {
 		}
 
 		return rtrim( $cut, " ,.;:–-" ) . '…';
+	}
+
+	/**
+	 * Write an SEO title for a freshly synced package.
+	 *
+	 * Defensive, not decorative: the live site was serving "MultiWander" as
+	 * the <title> of every package page — the site name alone, with no page
+	 * name — because Yoast's title template for Pages was not producing one.
+	 * Google uses <title> as the clickable headline, so every package page
+	 * would have competed in search results as the same identical blue link.
+	 *
+	 * Writing an explicit per-page title makes the plugin independent of that
+	 * template. A title an editor has written by hand is never overwritten.
+	 *
+	 * @param int    $post_id Post.
+	 * @param array  $data    Payload.
+	 * @param string $lang    Language slug.
+	 * @return void
+	 */
+	public static function maybe_set_title( $post_id, array $data, $lang = 'pl' ) {
+		$existing = get_post_meta( $post_id, '_yoast_wpseo_title', true );
+		if ( $existing ) {
+			return;
+		}
+
+		$en    = ( 'en' === $lang );
+		$title = trim( $data['title'] );
+		if ( '' === $title ) {
+			return;
+		}
+
+		// A short qualifier helps the result stand out without pushing the
+		// title past the ~60 characters Google will actually show.
+		$qualifier = '';
+		if ( $data['duration']['days'] ) {
+			$qualifier = sprintf( $en ? '%d days' : '%d dni', $data['duration']['days'] );
+		}
+
+		$brand = get_bloginfo( 'name' );
+		$parts = array_filter( array( $title, $qualifier ) );
+
+		$seo_title = implode( ' | ', $parts );
+
+		// Only append the brand when there is room for it.
+		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $seo_title ) : strlen( $seo_title );
+		if ( $brand && $length + 3 + strlen( $brand ) <= 65 ) {
+			$seo_title .= ' | ' . $brand;
+		}
+
+		update_post_meta( $post_id, '_yoast_wpseo_title', $seo_title );
 	}
 
 	/**
