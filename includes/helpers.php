@@ -312,6 +312,26 @@ function mwp_booking_url( array $data, $lang = 'pl' ) {
 }
 
 /**
+ * Where the "request advice" button goes.
+ *
+ * Defaults to the site's own contact page in the current language so the
+ * enquiry stays on multiwander.com. Returns '' when nothing is configured,
+ * and the button is then simply not rendered.
+ *
+ * @param string $lang Language slug.
+ * @return string
+ */
+function mwp_enquiry_url( $lang = 'pl' ) {
+	$url = (string) get_option( 'mwp_enquiry_url', '' );
+
+	if ( '' === $url ) {
+		$url = ( 'en' === $lang ) ? home_url( '/en/contact/' ) : home_url( '/kontakt/' );
+	}
+
+	return (string) apply_filters( 'mwp_enquiry_url', $url, $lang );
+}
+
+/**
  * Current Polylang language slug, with a sane default.
  *
  * @return string

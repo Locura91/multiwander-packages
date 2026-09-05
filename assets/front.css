@@ -1267,3 +1267,195 @@
 	max-width: 100%;
 	overflow-x: auto;
 }
+
+/* =================================================================
+   Product page — collage hero and quiet buttons
+   ================================================================= */
+
+.mwp-collage {
+	position: relative;
+	display: grid;
+	gap: 10px;
+	grid-template-columns: 1fr;
+	margin-bottom: 22px;
+}
+
+@media (min-width: 780px) {
+	.mwp-collage-2 { grid-template-columns: 2fr 1fr; }
+	.mwp-collage-3 {
+		grid-template-columns: 2fr 1fr;
+		grid-template-rows: 1fr 1fr;
+	}
+	.mwp-collage-3 .mwp-shot:first-child {
+		grid-row: span 2;
+	}
+}
+
+.mwp-shot {
+	margin: 0;
+	border-radius: 12px;
+	overflow: hidden;
+	background: #e9edf0;
+}
+
+.mwp-shot img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	aspect-ratio: 16 / 10;
+}
+
+@media (min-width: 780px) {
+	.mwp-collage-3 .mwp-shot:first-child img { aspect-ratio: 16 / 11; }
+	.mwp-collage-3 .mwp-shot:not(:first-child) img { aspect-ratio: 16 / 8; }
+}
+
+/* Only the first two thumbnails are worth the space on a phone. */
+@media (max-width: 779px) {
+	.mwp-collage-3 { grid-template-columns: 1fr 1fr; }
+	.mwp-collage-3 .mwp-shot:first-child { grid-column: span 2; }
+}
+
+.mwp-gallery-btn {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	padding: 8px 16px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .94);
+	color: var(--mwp-ink-strong);
+	font-size: .84rem;
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+	transition: background .2s ease;
+}
+
+.mwp-gallery-btn:hover,
+.mwp-gallery-btn:focus {
+	background: #fff;
+	color: var(--mwp-ink-strong);
+}
+
+/* Title block now sits under the images, not burned into them. */
+
+.mwp-head {
+	margin-bottom: 4px;
+}
+
+.mwp-head .mwp-eyebrow {
+	display: inline-block;
+	margin-bottom: 12px;
+	background: rgba(23, 163, 152, .12);
+	color: var(--mwp-teal-dark);
+	border-radius: 999px;
+	padding: 5px 14px;
+	text-shadow: none;
+}
+
+.mwp-head .mwp-title {
+	color: var(--mwp-ink-strong);
+	text-shadow: none;
+	margin: 0 0 8px;
+	font-size: clamp(1.6rem, 4vw, 2.5rem);
+	font-weight: 600;
+}
+
+.mwp-subline {
+	margin: 0;
+	font-size: .95rem;
+	color: var(--mwp-muted);
+}
+
+/* Buttons: outlined, stacked, full width — quiet until you want them. */
+
+.mwp-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-bottom: 20px;
+}
+
+.mwp-btn {
+	display: block;
+	width: 100%;
+	padding: 13px 18px;
+	border: 1px solid #c8ced4;
+	border-radius: 8px;
+	background: var(--mwp-surface);
+	color: var(--mwp-ink-strong);
+	font-family: var(--mwp-head);
+	font-size: .95rem;
+	font-weight: 500;
+	text-align: center;
+	text-decoration: none;
+	box-sizing: border-box;
+	transition: border-color .2s ease, background .2s ease, color .2s ease;
+}
+
+.mwp-btn:hover,
+.mwp-btn:focus {
+	border-color: var(--mwp-teal);
+	color: var(--mwp-teal-dark);
+	background: rgba(23, 163, 152, .06);
+}
+
+.mwp-btn-primary {
+	border-color: var(--mwp-teal);
+	background: var(--mwp-teal);
+	color: #fff;
+}
+
+.mwp-btn-primary:hover,
+.mwp-btn-primary:focus {
+	background: var(--mwp-teal-dark);
+	border-color: var(--mwp-teal-dark);
+	color: #fff;
+}
+
+.mwp-btn-wide {
+	display: inline-block;
+	width: auto;
+	padding: 14px 34px;
+}
+
+/* Price card, restated for the new order (buttons first, price under). */
+
+.mwp-pricecard {
+	text-align: left;
+}
+
+.mwp-pricecard .mwp-bar-amount {
+	margin: 0;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	color: var(--mwp-ink-strong);
+	font-size: clamp(1.7rem, 4vw, 2.15rem);
+}
+
+.mwp-from-word {
+	font-family: var(--mwp-body);
+	font-size: .95rem;
+	font-weight: 500;
+	color: var(--mwp-muted);
+}
+
+.mwp-pricecard .mwp-price-basis {
+	margin: 2px 0 0;
+	font-weight: 400;
+	color: var(--mwp-muted);
+	font-size: .84rem;
+}
+
+.mwp-pricecard .mwp-facts {
+	justify-content: flex-start;
+}
+
+.mwp-pricecard .mwp-fact {
+	align-items: flex-start;
+}
+
+.mwp-pricecard .mwp-note {
+	text-align: left;
+}

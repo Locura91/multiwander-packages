@@ -389,41 +389,99 @@ class MWP_Frontend {
 		?>
 		<div class="mwp mwp-package">
 
-			<header class="mwp-hero">
-				<?php if ( $hero ) : ?>
-					<img src="<?php echo esc_url( $hero ); ?>"
-						alt="<?php echo esc_attr( $title ); ?>"
-						fetchpriority="high" decoding="async">
-				<?php endif; ?>
-				<div class="mwp-hero-overlay">
-					<h1 class="mwp-title"><?php echo esc_html( $title ); ?></h1>
-					<?php if ( $d['ribbon'] ) : ?>
-						<span class="mwp-eyebrow"><?php echo esc_html( $d['ribbon'] ); ?></span>
+			<?php
+			$shots = array();
+			if ( $hero ) {
+				$shots[] = $hero;
+			}
+			foreach ( $d['gallery'] as $g ) {
+				if ( count( $shots ) >= 3 ) {
+					break;
+				}
+				if ( ! in_array( $g, $shots, true ) ) {
+					$shots[] = $g;
+				}
+			}
+			?>
+
+			<?php if ( $shots ) : ?>
+				<div class="mwp-collage mwp-collage-<?php echo esc_attr( count( $shots ) ); ?>">
+					<?php foreach ( $shots as $i => $shot ) : ?>
+						<figure class="mwp-shot">
+							<img src="<?php echo esc_url( $shot ); ?>"
+								alt="<?php echo esc_attr( $title ); ?>"
+								<?php echo 0 === $i ? 'fetchpriority="high"' : 'loading="lazy"'; ?>
+								decoding="async">
+						</figure>
+					<?php endforeach; ?>
+
+					<?php if ( count( $d['gallery'] ) > 3 ) : ?>
+						<a class="mwp-gallery-btn" href="#mwp-gallery">
+							<?php echo esc_html( $t( 'Galeria zdjęć', 'Photo gallery' ) ); ?>
+						</a>
 					<?php endif; ?>
 				</div>
+			<?php endif; ?>
+
+			<header class="mwp-head">
+				<?php if ( $d['ribbon'] ) : ?>
+					<span class="mwp-eyebrow"><?php echo esc_html( $d['ribbon'] ); ?></span>
+				<?php endif; ?>
+
+				<h1 class="mwp-title"><?php echo esc_html( $title ); ?></h1>
+
+				<?php
+				$summary = array();
+				if ( $d['duration']['days'] ) {
+					$summary[] = sprintf( $t( '%d dni', '%d days' ), $d['duration']['days'] );
+				}
+				if ( $d['destinations'] ) {
+					$first = $d['destinations'][0]['name'];
+					$last  = $d['destinations'][ count( $d['destinations'] ) - 1 ]['name'];
+					$summary[] = $first === $last
+						? $first
+						: sprintf( $t( 'od %1$s do %2$s', 'from %1$s to %2$s' ), $first, $last );
+				}
+				?>
+				<?php if ( $summary ) : ?>
+					<p class="mwp-subline"><?php echo esc_html( implode( ', ', $summary ) ); ?></p>
+				<?php endif; ?>
 			</header>
 
 			<div class="mwp-top">
 
 				<aside class="mwp-aside">
 					<div class="mwp-pricecard">
+						<?php if ( $booking ) : ?>
+							<div class="mwp-actions">
+								<a class="mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+									<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
+								</a>
+								<a class="mwp-btn" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+									<?php echo esc_html( $t( 'Dostosuj podróż', 'Configure this trip' ) ); ?>
+								</a>
+								<?php $enquiry = mwp_enquiry_url( $lang ); ?>
+								<?php if ( $enquiry ) : ?>
+									<a class="mwp-btn" href="<?php echo esc_url( $enquiry ); ?>">
+										<?php echo esc_html( $t( 'Zapytaj o ofertę', 'Request advice' ) ); ?>
+									</a>
+								<?php endif; ?>
+							</div>
+						<?php endif; ?>
+
 						<?php if ( $price['value'] ) : ?>
-							<p class="mwp-price-label"><?php echo esc_html( $t( 'Cena za osobę od', 'Price per person from' ) ); ?></p>
-							<p class="mwp-bar-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></p>
+							<p class="mwp-bar-amount">
+								<span class="mwp-from-word"><?php echo esc_html( $t( 'od', 'from' ) ); ?></span>
+								<?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?>
+							</p>
 							<p class="mwp-price-basis">
 								<?php
 								echo esc_html( sprintf(
-									$t( 'Oparte na %d osobach dorosłych', 'Based on %d adults' ),
+									$t( 'za osobę, przy %d osobach dorosłych', 'per person, based on %d adults' ),
 									$adults
 								) );
 								?>
 							</p>
-						<?php endif; ?>
-
-						<?php if ( $booking ) : ?>
-							<a class="mwp-cta mwp-cta-block" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
-								<?php echo esc_html( $t( 'Dostosuj i zarezerwuj podróż', 'Customise & book this trip' ) ); ?>
-							</a>
 						<?php endif; ?>
 
 						<ul class="mwp-facts">
@@ -602,7 +660,7 @@ class MWP_Frontend {
 					<?php endforeach; ?>
 
 					<?php if ( count( $d['gallery'] ) > 3 ) : ?>
-						<section class="mwp-section">
+						<section class="mwp-section" id="mwp-gallery">
 							<h2><?php echo esc_html( sprintf( $t( '%s w obrazach', '%s in pictures' ), $title ) ); ?></h2>
 							<div class="mwp-gallery">
 								<?php foreach ( array_slice( $d['gallery'], 0, 12 ) as $i => $url ) : ?>
@@ -620,8 +678,8 @@ class MWP_Frontend {
 							<?php echo esc_html( $t( 'Zmień terminy, hotele, lotnisko wylotu i długość pobytu w każdym miejscu. Sprawdź aktualną cenę i dostępność w kilka sekund.', 'Change the dates, the hotels, your departure airport and how long you stay in each place. Check live pricing and availability in seconds.' ) ); ?>
 						</p>
 						<?php if ( $booking ) : ?>
-							<a class="mwp-cta" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
-								<?php echo esc_html( $t( 'Dostosuj i zarezerwuj podróż', 'Customise & book this trip' ) ); ?>
+							<a class="mwp-btn mwp-btn-primary mwp-btn-wide" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
 							</a>
 						<?php endif; ?>
 						<?php if ( $parent ) : ?>
