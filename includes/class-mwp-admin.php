@@ -120,7 +120,7 @@ class MWP_Admin {
 		$heading = get_post_meta( $source, MWP_META_HEADING, true );
 		$sub     = get_post_meta( $source, MWP_META_SUB, true );
 		$layout  = get_post_meta( $source, MWP_META_LAYOUT, true );
-		$layout  = $layout ? $layout : 'row';
+		$layout  = $layout ? $layout : 'auto';
 		?>
 
 		<table class="form-table mwp-form">
@@ -146,10 +146,13 @@ class MWP_Admin {
 				<th><label for="mwp_offers_layout"><?php esc_html_e( 'Layout', 'multiwander-packages' ); ?></label></th>
 				<td>
 					<select id="mwp_offers_layout" name="mwp_offers_layout">
+						<option value="auto" <?php selected( $layout, 'auto' ); ?>><?php esc_html_e( 'Automatic — chosen by how many offers there are', 'multiwander-packages' ); ?></option>
 						<option value="row" <?php selected( $layout, 'row' ); ?>><?php esc_html_e( 'Row — three side by side', 'multiwander-packages' ); ?></option>
+						<option value="duo" <?php selected( $layout, 'duo' ); ?>><?php esc_html_e( 'Two — a pair of large cards', 'multiwander-packages' ); ?></option>
 						<option value="slider" <?php selected( $layout, 'slider' ); ?>><?php esc_html_e( 'Slider — swipeable carousel', 'multiwander-packages' ); ?></option>
 						<option value="single" <?php selected( $layout, 'single' ); ?>><?php esc_html_e( 'Single — one large offer', 'multiwander-packages' ); ?></option>
 					</select>
+					<span class="mwp-help"><?php esc_html_e( '1 offer → one centred card · 2 → a pair · 3 → a full row · 4 or more → a slider.', 'multiwander-packages' ); ?></span>
 				</td>
 			</tr>
 		</table>
@@ -326,7 +329,7 @@ class MWP_Admin {
 		}
 		if ( isset( $_POST['mwp_offers_layout'] ) ) {
 			$layout = sanitize_key( wp_unslash( $_POST['mwp_offers_layout'] ) );
-			update_post_meta( $source, MWP_META_LAYOUT, in_array( $layout, array( 'row', 'slider', 'single' ), true ) ? $layout : 'row' );
+			update_post_meta( $source, MWP_META_LAYOUT, in_array( $layout, array( 'auto', 'row', 'duo', 'slider', 'single' ), true ) ? $layout : 'auto' );
 		}
 
 		if ( $rejected ) {

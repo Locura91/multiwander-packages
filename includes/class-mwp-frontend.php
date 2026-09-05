@@ -61,7 +61,12 @@ class MWP_Frontend {
 		);
 
 		// The slider script is only worth its bytes where a slider exists.
-		if ( $has_offers && ( 'slider' === $layout || false !== strpos( $content, 'layout="slider"' ) ) ) {
+		// With the automatic layout the shape is only known at render time, so
+		// load the tiny slider script whenever a slider is possible.
+		$maybe_slider = ( '' === $layout || 'auto' === $layout || 'slider' === $layout )
+			|| false !== strpos( $content, 'layout="slider"' );
+
+		if ( $has_offers && $maybe_slider ) {
 			wp_enqueue_script(
 				'mwp-slider',
 				MWP_URL . 'assets/slider.js',
@@ -101,7 +106,7 @@ class MWP_Frontend {
 		$source = $page ? MWP_Sync::source_country_id( $page->ID ) : 0;
 
 		$defaults = array(
-			'layout'  => $source ? ( get_post_meta( $source, MWP_META_LAYOUT, true ) ?: 'row' ) : 'row',
+			'layout'  => $source ? ( get_post_meta( $source, MWP_META_LAYOUT, true ) ?: 'auto' ) : 'auto',
 			'ids'     => '',
 			'columns' => 3,
 			'limit'   => 0,
@@ -111,9 +116,9 @@ class MWP_Frontend {
 
 		$atts = shortcode_atts( $defaults, $atts, 'multiwander_offers' );
 
-		$layout = in_array( $atts['layout'], array( 'row', 'slider', 'single' ), true )
+		$layout = in_array( $atts['layout'], array( 'auto', 'row', 'slider', 'single', 'duo' ), true )
 			? $atts['layout']
-			: 'row';
+			: 'auto';
 
 		$lang  = mwp_current_lang();
 		$pages = self::resolve_pages( $atts['ids'], $lang );
@@ -122,6 +127,23 @@ class MWP_Frontend {
 			$pages = array_slice( $pages, 0, 1 );
 		} elseif ( $atts['limit'] > 0 ) {
 			$pages = array_slice( $pages, 0, (int) $atts['limit'] );
+		}
+
+		// Let the number of offers choose the shape. One card centred and not
+		// stretched across the page; two side by side; three as a full desktop
+		// row; four or more as a scrollable track, because a fourth card would
+		// otherwise squeeze the others below a readable width.
+		if ( 'auto' === $layout ) {
+			$count = count( $pages );
+			if ( $count <= 1 ) {
+				$layout = 'single';
+			} elseif ( 2 === $count ) {
+				$layout = 'duo';
+			} elseif ( 3 === $count ) {
+				$layout = 'row';
+			} else {
+				$layout = 'slider';
+			}
 		}
 
 		if ( ! $pages ) {
@@ -227,69 +249,75 @@ class MWP_Frontend {
 		$url   = get_permalink( $page );
 		$title = get_the_title( $page );
 
+		// Small line above the title: the package's own first theme, falling
+		// back to the ribbon so the slot is never empty.
+		$kicker = ! empty( $data['themes'][0] ) ? $data['themes'][0] : $data['ribbon'];
+
+		// One descriptive line: where you go, then what is in it.
 		$stops = wp_list_pluck( $data['destinations'], 'name' );
-		$route = $stops ? implode( ' · ', array_slice( $stops, 0, 5 ) ) : '';
-		if ( count( $stops ) > 5 ) {
+		$route = $stops ? implode( ' · ', array_slice( $stops, 0, 4 ) ) : '';
+		if ( count( $stops ) > 4 ) {
 			$route .= ' …';
 		}
 
-		$chips = array();
+		$bits = array();
 		if ( $data['duration']['days'] ) {
-			$chips[] = sprintf( $en ? '%d days' : '%d dni', $data['duration']['days'] );
+			$bits[] = sprintf( $en ? '%d days' : '%d dni', $data['duration']['days'] );
 		}
-		if ( count( $data['destinations'] ) ) {
-			$chips[] = sprintf(
-				$en ? '%d stops' : '%d miejsc',
-				count( $data['destinations'] )
-			);
+
+		$stars = 0;
+		foreach ( $data['hotels'] as $hotel ) {
+			$stars = max( $stars, (int) $hotel['stars'] );
+		}
+		if ( $stars ) {
+			$bits[] = $stars . '★ ' . ( $en ? 'hotels' : 'hotele' );
 		}
 		if ( $data['flights'] ) {
-			$chips[] = $en ? 'Flights included' : 'Z przelotem';
+			$bits[] = $en ? 'flights included' : 'z przelotem';
 		}
+
+		$summary = trim( $route . ( $bits ? ' — ' . implode( ', ', $bits ) : '' ) );
 		?>
 		<article class="mwp-card">
-			<div class="mwp-card-media">
-				<?php if ( $image ) : ?>
-					<img src="<?php echo esc_url( $image ); ?>"
-						alt="<?php echo esc_attr( sprintf( $en ? 'Trip: %s' : 'Podróż: %s', $title ) ); ?>"
-						loading="lazy" decoding="async">
-				<?php endif; ?>
-				<?php if ( $data['ribbon'] ) : ?>
-					<span class="mwp-ribbon"><?php echo esc_html( $data['ribbon'] ); ?></span>
-				<?php endif; ?>
-			</div>
+			<a class="mwp-card-link" href="<?php echo esc_url( $url ); ?>">
 
-			<div class="mwp-card-body">
-				<h3 class="mwp-card-title">
-					<a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $title ); ?></a>
-				</h3>
+				<div class="mwp-card-media">
+					<?php if ( $image ) : ?>
+						<img src="<?php echo esc_url( $image ); ?>"
+							alt="<?php echo esc_attr( sprintf( $en ? 'Trip: %s' : 'Podróż: %s', $title ) ); ?>"
+							loading="lazy" decoding="async">
+					<?php endif; ?>
+					<?php if ( $data['ribbon'] ) : ?>
+						<span class="mwp-ribbon"><?php echo esc_html( $data['ribbon'] ); ?></span>
+					<?php endif; ?>
+				</div>
 
-				<?php if ( $route ) : ?>
-					<p class="mwp-route-line"><?php echo esc_html( $route ); ?></p>
-				<?php endif; ?>
-
-				<?php if ( $chips ) : ?>
-					<ul class="mwp-chips">
-						<?php foreach ( $chips as $chip ) : ?>
-							<li class="mwp-chip"><?php echo esc_html( $chip ); ?></li>
-						<?php endforeach; ?>
-					</ul>
-				<?php endif; ?>
-
-				<div class="mwp-card-foot">
-					<?php if ( $price['value'] ) : ?>
-						<p class="mwp-price">
-							<span class="mwp-price-label"><?php echo esc_html( $en ? 'from' : 'już od' ); ?></span>
-							<span class="mwp-price-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></span>
-							<span class="mwp-price-per"><?php echo esc_html( $en ? 'per person' : 'od osoby' ); ?></span>
-						</p>
-					<?php else : ?>
-						<span></span>
+				<div class="mwp-card-body">
+					<?php if ( $kicker ) : ?>
+						<p class="mwp-kicker"><?php echo esc_html( $kicker ); ?></p>
 					<?php endif; ?>
 
-					<span class="mwp-cta"><?php echo esc_html( $en ? 'View trip' : 'Zobacz podróż' ); ?></span>
+					<h3 class="mwp-card-title"><?php echo esc_html( $title ); ?></h3>
+
+					<?php if ( $summary ) : ?>
+						<p class="mwp-card-summary"><?php echo esc_html( $summary ); ?></p>
+					<?php endif; ?>
+
+					<div class="mwp-card-foot">
+						<?php if ( $price['value'] ) : ?>
+							<p class="mwp-price">
+								<span class="mwp-price-from"><?php echo esc_html( $en ? 'from' : 'od' ); ?></span>
+								<span class="mwp-price-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></span>
+								<span class="mwp-price-per"><?php echo esc_html( $en ? 'p. p.' : 'os.' ); ?></span>
+							</p>
+						<?php else : ?>
+							<span></span>
+						<?php endif; ?>
+
+						<span class="mwp-pill"><?php echo esc_html( $en ? 'View' : 'Zobacz' ); ?></span>
+					</div>
 				</div>
-			</div>
+			</a>
 		</article>
 		<?php
 	}
