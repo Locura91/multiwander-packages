@@ -259,6 +259,59 @@ function mwp_format_price( $money, $lang = 'pl' ) {
 }
 
 /**
+ * The booking URL a visitor should be sent to.
+ *
+ * The API's own `ideaUrl` points at online.travelcompositor.com, which is the
+ * raw platform. Visitors go to the branded front-end instead:
+ *
+ *     https://momira.travel/{lang}/idea/{id}/{slug}
+ *
+ * The slug comes from the `title` parameter inside ideaUrl, which is already
+ * the correct per-language slug that site uses — so the Polish page links to
+ * the Polish trip page and the English page to the English one.
+ *
+ * @param array  $data Normalised package payload.
+ * @param string $lang Site language slug ('pl', 'en').
+ * @return string
+ */
+function mwp_booking_url( array $data, $lang = 'pl' ) {
+	$base = untrailingslashit(
+		(string) apply_filters(
+			'mwp_booking_base',
+			get_option( 'mwp_booking_base', 'https://momira.travel' )
+		)
+	);
+
+	$id = isset( $data['id'] ) ? preg_replace( '/\D/', '', (string) $data['id'] ) : '';
+
+	if ( '' === $base || '' === $id ) {
+		// Nothing better to offer than whatever the API gave us.
+		return isset( $data['booking_url'] ) ? (string) $data['booking_url'] : '';
+	}
+
+	$slug = '';
+
+	if ( ! empty( $data['booking_url'] ) ) {
+		$query = wp_parse_url( $data['booking_url'], PHP_URL_QUERY );
+		if ( $query ) {
+			$args = array();
+			parse_str( $query, $args );
+			if ( ! empty( $args['title'] ) ) {
+				// Keep it byte-for-byte as the platform wrote it (including any
+				// trailing dash) minus anything unsafe for a path segment.
+				$slug = preg_replace( '/[^a-z0-9\-]/', '', strtolower( $args['title'] ) );
+			}
+		}
+	}
+
+	if ( '' === $slug ) {
+		$slug = mwp_slug( isset( $data['title'] ) ? $data['title'] : '' );
+	}
+
+	return $base . '/' . rawurlencode( $lang ) . '/idea/' . $id . '/' . $slug;
+}
+
+/**
  * Current Polylang language slug, with a sane default.
  *
  * @return string
