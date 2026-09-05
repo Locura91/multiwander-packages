@@ -86,15 +86,26 @@ class MWP_Admin {
 	public static function render_country_box( $post ) {
 		wp_nonce_field( 'mwp_save_' . $post->ID, 'mwp_nonce' );
 
-		$raw = get_post_meta( $post->ID, MWP_META_IDS, true );
-		$ids = MWP_Sync::get_package_ids( $post->ID );
+		$source = MWP_Sync::source_country_id( $post->ID );
+		$raw    = get_post_meta( $source, MWP_META_IDS, true );
+		$ids    = MWP_Sync::get_package_ids( $source );
+
+		if ( $source !== $post->ID ) {
+			echo '<div class="notice notice-info inline"><p>' .
+				sprintf(
+					/* translators: %s: link to the Polish page */
+					esc_html__( 'Packages for this page are managed on its Polish version: %s', 'multiwander-packages' ),
+					'<a href="' . esc_url( (string) get_edit_post_link( $source ) ) . '">' . esc_html( get_the_title( $source ) ) . '</a>'
+				) .
+				'</p></div>';
+		}
 
 		if ( ! MWP_Client::is_configured() ) {
 			echo '<div class="notice notice-error inline"><p><strong>' .
 				esc_html__( 'Travel Compositor credentials are missing.', 'multiwander-packages' ) .
-				'</strong> ' .
-				esc_html__( 'Add MW_TC_USERNAME and MW_TC_PASSWORD to wp-config.php before syncing.', 'multiwander-packages' ) .
-				'</p></div>';
+				'</strong> <a href="' . esc_url( admin_url( 'options-general.php?page=mwp-settings' ) ) . '">' .
+				esc_html__( 'Add them in Settings → MultiWander Packages', 'multiwander-packages' ) .
+				'</a>.</p></div>';
 		}
 		?>
 		<p class="mwp-help">
@@ -145,7 +156,7 @@ class MWP_Admin {
 			</table>
 
 			<p>
-				<a class="button" href="<?php echo esc_url( self::resync_url( $post->ID ) ); ?>">
+				<a class="button" href="<?php echo esc_url( self::resync_url( $source ) ); ?>">
 					<?php esc_html_e( 'Re-sync now', 'multiwander-packages' ); ?>
 				</a>
 				<span class="mwp-help"><?php esc_html_e( 'Refreshes prices and content without editing the page.', 'multiwander-packages' ); ?></span>
@@ -239,8 +250,13 @@ class MWP_Admin {
 			return;
 		}
 
-		$raw = sanitize_textarea_field( wp_unslash( $_POST['mwp_package_ids'] ) );
-		update_post_meta( $post_id, MWP_META_IDS, $raw );
+		// Always store and sync against the Polish original: Polish is the
+		// source language and the Polish country page is the parent the
+		// package pages hang off. Editing the English page must not build the
+		// tree under the English parent.
+		$raw    = sanitize_textarea_field( wp_unslash( $_POST['mwp_package_ids'] ) );
+		$source = MWP_Sync::source_country_id( $post_id );
+		update_post_meta( $source, MWP_META_IDS, $raw );
 
 		if ( '' === trim( $raw ) || ! MWP_Client::is_configured() ) {
 			return;
@@ -249,10 +265,10 @@ class MWP_Admin {
 		// Avoid recursion: sync_package writes pages, which fires save_post.
 		remove_action( 'save_post_page', array( __CLASS__, 'save_page' ), 20 );
 		$sync   = new MWP_Sync();
-		$result = $sync->sync_country_page( $post_id );
+		$result = $sync->sync_country_page( $source );
 		add_action( 'save_post_page', array( __CLASS__, 'save_page' ), 20, 3 );
 
-		self::store_notice( $post_id, $result );
+		self::store_notice( $source, $result );
 	}
 
 	// -----------------------------------------------------------------
@@ -366,7 +382,27 @@ class MWP_Admin {
 				'</p></div>';
 		}
 
-		$c = MWP_Client::config();
+		if ( isset( $_POST['mwp_save_template'] ) && check_admin_referer( 'mwp_template' ) ) {
+			update_option( 'mwp_page_template', sanitize_text_field( wp_unslash( $_POST['mwp_page_template'] ?? '' ) ) );
+			echo '<div class="notice notice-success"><p>' .
+				esc_html__( 'Saved. Re-sync a country page to apply the template to its package pages.', 'multiwander-packages' ) .
+				'</p></div>';
+		}
+
+		if ( isset( $_POST['mwp_save_credentials'] ) && check_admin_referer( 'mwp_credentials' ) ) {
+			MWP_Client::save_settings( array(
+				'user'      => isset( $_POST['mwp_user'] ) ? wp_unslash( $_POST['mwp_user'] ) : '',
+				'pass'      => isset( $_POST['mwp_pass'] ) ? wp_unslash( $_POST['mwp_pass'] ) : '',
+				'microsite' => isset( $_POST['mwp_microsite'] ) ? wp_unslash( $_POST['mwp_microsite'] ) : '',
+				'base'      => isset( $_POST['mwp_base'] ) ? wp_unslash( $_POST['mwp_base'] ) : '',
+			) );
+			echo '<div class="notice notice-success"><p>' .
+				esc_html__( 'Credentials saved.', 'multiwander-packages' ) . '</p></div>';
+		}
+
+		$c            = MWP_Client::config();
+		$from_config  = ( 'wp-config.php' === $c['source'] );
+		$has_password = MWP_Client::has_stored_password();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'MultiWander Packages', 'multiwander-packages' ); ?></h1>
@@ -378,26 +414,84 @@ class MWP_Admin {
 					<td><?php self::render_connection_status(); ?></td>
 				</tr>
 				<tr>
-					<th><?php esc_html_e( 'Microsite', 'multiwander-packages' ); ?></th>
-					<td><code><?php echo esc_html( $c['microsite'] ); ?></code></td>
-				</tr>
-				<tr>
-					<th><?php esc_html_e( 'Base URL', 'multiwander-packages' ); ?></th>
-					<td><code><?php echo esc_html( $c['base'] ); ?></code></td>
-				</tr>
-				<tr>
-					<th><?php esc_html_e( 'Credentials', 'multiwander-packages' ); ?></th>
+					<th><?php esc_html_e( 'Credentials from', 'multiwander-packages' ); ?></th>
 					<td>
-						<?php if ( MWP_Client::is_configured() ) : ?>
-							<span class="mwp-ok">&#10003;</span>
-							<?php esc_html_e( 'Set in wp-config.php', 'multiwander-packages' ); ?>
+						<?php if ( $from_config ) : ?>
+							<code>wp-config.php</code>
+							<span class="mwp-help"><?php esc_html_e( 'The safest option — the fields below are ignored while these constants are set.', 'multiwander-packages' ); ?></span>
 						<?php else : ?>
-							<span class="mwp-bad">&#10007;</span>
-							<?php esc_html_e( 'Missing. Add MW_TC_USERNAME and MW_TC_PASSWORD to wp-config.php.', 'multiwander-packages' ); ?>
+							<?php esc_html_e( 'the fields below', 'multiwander-packages' ); ?>
+							<span class="mwp-help"><?php esc_html_e( 'Stored in the database, encrypted with this site\'s salts. Moving them into wp-config.php later is more secure and takes priority automatically.', 'multiwander-packages' ); ?></span>
 						<?php endif; ?>
 					</td>
 				</tr>
 			</table>
+
+			<form method="post">
+				<?php wp_nonce_field( 'mwp_credentials' ); ?>
+				<table class="form-table">
+					<tr>
+						<th><label for="mwp_user"><?php esc_html_e( 'Username', 'multiwander-packages' ); ?></label></th>
+						<td>
+							<input type="text" id="mwp_user" name="mwp_user" class="regular-text"
+								value="<?php echo esc_attr( $from_config ? '' : get_option( MWP_Client::OPT_USER, '' ) ); ?>"
+								autocomplete="off" <?php disabled( $from_config ); ?>>
+							<span class="mwp-help"><?php esc_html_e( 'This username contains spaces. That is correct.', 'multiwander-packages' ); ?></span>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="mwp_pass"><?php esc_html_e( 'Password', 'multiwander-packages' ); ?></label></th>
+						<td>
+							<input type="password" id="mwp_pass" name="mwp_pass" class="regular-text"
+								value="" autocomplete="new-password"
+								placeholder="<?php echo esc_attr( $has_password ? __( 'stored — leave empty to keep it', 'multiwander-packages' ) : '' ); ?>"
+								<?php disabled( $from_config ); ?>>
+							<span class="mwp-help"><?php esc_html_e( 'Never shown again once saved. Leave empty when changing the other fields.', 'multiwander-packages' ); ?></span>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="mwp_microsite"><?php esc_html_e( 'Microsite', 'multiwander-packages' ); ?></label></th>
+						<td><input type="text" id="mwp_microsite" name="mwp_microsite" class="regular-text"
+							value="<?php echo esc_attr( $c['microsite'] ); ?>" <?php disabled( $from_config ); ?>></td>
+					</tr>
+					<tr>
+						<th><label for="mwp_base"><?php esc_html_e( 'Base URL', 'multiwander-packages' ); ?></label></th>
+						<td><input type="url" id="mwp_base" name="mwp_base" class="large-text"
+							value="<?php echo esc_attr( $c['base'] ); ?>" <?php disabled( $from_config ); ?>></td>
+					</tr>
+				</table>
+				<?php if ( ! $from_config ) : ?>
+					<p><button class="button button-primary" name="mwp_save_credentials" value="1"><?php esc_html_e( 'Save credentials', 'multiwander-packages' ); ?></button></p>
+				<?php endif; ?>
+			</form>
+
+			<hr>
+
+			<h2><?php esc_html_e( 'Package pages', 'multiwander-packages' ); ?></h2>
+			<form method="post">
+				<?php wp_nonce_field( 'mwp_template' ); ?>
+				<table class="form-table">
+					<tr>
+						<th><label for="mwp_page_template"><?php esc_html_e( 'Page template', 'multiwander-packages' ); ?></label></th>
+						<td>
+							<?php $current = (string) get_option( 'mwp_page_template', '' ); ?>
+							<select id="mwp_page_template" name="mwp_page_template">
+								<option value=""><?php esc_html_e( '— leave each page as it is —', 'multiwander-packages' ); ?></option>
+								<option value="default" <?php selected( $current, 'default' ); ?>><?php esc_html_e( 'Default template', 'multiwander-packages' ); ?></option>
+								<?php foreach ( wp_get_theme()->get_page_templates( null, 'page' ) as $file => $name ) : ?>
+									<option value="<?php echo esc_attr( $file ); ?>" <?php selected( $current, $file ); ?>>
+										<?php echo esc_html( $name ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<span class="mwp-help">
+								<?php esc_html_e( 'Package pages print their own H1 in the hero image. Choose a template that does NOT also display the page title — otherwise every package page has two H1 headings, which weakens it in search. On this theme that is "Page Builder (Transparent Header, Without Title)".', 'multiwander-packages' ); ?>
+							</span>
+						</td>
+					</tr>
+				</table>
+				<p><button class="button button-primary" name="mwp_save_template" value="1"><?php esc_html_e( 'Save', 'multiwander-packages' ); ?></button></p>
+			</form>
 
 			<form method="post">
 				<?php wp_nonce_field( 'mwp_flush' ); ?>

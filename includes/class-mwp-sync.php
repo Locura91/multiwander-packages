@@ -229,9 +229,33 @@ class MWP_Sync {
 		update_post_meta( $post_id, MWP_META_DATA, wp_slash( wp_json_encode( $data ) ) );
 		update_post_meta( $post_id, MWP_META_SYNCED, current_time( 'mysql' ) );
 
+		$this->apply_page_template( $post_id );
+		MWP_SEO::maybe_set_meta_description( $post_id, $data, $lang );
 		$this->maybe_set_featured_image( $post_id, $data );
 
 		return $post_id;
+	}
+
+	/**
+	 * Apply the page template chosen in settings.
+	 *
+	 * The package layout prints its own H1, so the page must use a template
+	 * that does NOT also print the title — otherwise every package page ships
+	 * two H1s, which search engines read as a confused page.
+	 *
+	 * @param int $post_id Post.
+	 * @return void
+	 */
+	protected function apply_page_template( $post_id ) {
+		$template = (string) get_option( 'mwp_page_template', '' );
+		if ( '' === $template ) {
+			return;
+		}
+		if ( 'default' === $template ) {
+			delete_post_meta( $post_id, '_wp_page_template' );
+			return;
+		}
+		update_post_meta( $post_id, '_wp_page_template', $template );
 	}
 
 	/**
@@ -348,6 +372,33 @@ class MWP_Sync {
 		$found = get_posts( $args );
 
 		return $found ? (int) $found[0] : 0;
+	}
+
+	/**
+	 * The Polish original of a country page.
+	 *
+	 * Package IDs are always stored on, and synced from, the Polish page:
+	 * Polish is the source language and the Polish country page is the parent
+	 * the Polish package pages hang off. Entering IDs while editing the
+	 * English page must not build the tree under the English parent.
+	 *
+	 * @param int $post_id Any language's country page.
+	 * @return int
+	 */
+	public static function source_country_id( $post_id ) {
+		$post_id = (int) $post_id;
+		if ( ! $post_id || ! function_exists( 'pll_get_post_language' ) ) {
+			return $post_id;
+		}
+
+		$lang = pll_get_post_language( $post_id, 'slug' );
+		if ( ! $lang || 'pl' === $lang ) {
+			return $post_id;
+		}
+
+		$pl = pll_get_post( $post_id, 'pl' );
+
+		return $pl ? (int) $pl : $post_id;
 	}
 
 	/**

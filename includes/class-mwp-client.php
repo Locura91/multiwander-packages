@@ -31,18 +31,83 @@ class MWP_Client {
 	const TOKEN_TRANSIENT = 'mwp_tc_auth_token';
 	const CACHE_PREFIX    = 'mwp_tc_';
 
+	const OPT_USER      = 'mwp_tc_username';
+	const OPT_PASS      = 'mwp_tc_password';
+	const OPT_MICROSITE = 'mwp_tc_microsite';
+	const OPT_BASE      = 'mwp_tc_base_url';
+
 	/**
-	 * Credentials, read from wp-config constants only.
+	 * Credentials.
 	 *
-	 * @return array{user:string,pass:string,microsite:string,base:string}
+	 * wp-config.php constants win. Settings-screen values are the fallback,
+	 * so the plugin can be brought up without SFTP access and moved to
+	 * constants later without changing anything else.
+	 *
+	 * @return array{user:string,pass:string,microsite:string,base:string,source:string}
 	 */
 	public static function config() {
+		$user = defined( 'MW_TC_USERNAME' ) && MW_TC_USERNAME
+			? MW_TC_USERNAME
+			: (string) get_option( self::OPT_USER, '' );
+
+		$pass = defined( 'MW_TC_PASSWORD' ) && MW_TC_PASSWORD
+			? MW_TC_PASSWORD
+			: mwp_decrypt( get_option( self::OPT_PASS, '' ) );
+
+		$microsite = defined( 'MW_TC_MICROSITE' ) && MW_TC_MICROSITE
+			? MW_TC_MICROSITE
+			: (string) get_option( self::OPT_MICROSITE, 'momiratravel' );
+
+		$base = defined( 'MW_TC_BASE_URL' ) && MW_TC_BASE_URL
+			? MW_TC_BASE_URL
+			: (string) get_option( self::OPT_BASE, 'https://online.travelcompositor.com/resources' );
+
+		$from_config = defined( 'MW_TC_USERNAME' ) && MW_TC_USERNAME && defined( 'MW_TC_PASSWORD' ) && MW_TC_PASSWORD;
+
 		return array(
-			'user'      => defined( 'MW_TC_USERNAME' ) ? MW_TC_USERNAME : '',
-			'pass'      => defined( 'MW_TC_PASSWORD' ) ? MW_TC_PASSWORD : '',
-			'microsite' => defined( 'MW_TC_MICROSITE' ) ? MW_TC_MICROSITE : 'momiratravel',
-			'base'      => rtrim( defined( 'MW_TC_BASE_URL' ) ? MW_TC_BASE_URL : 'https://online.travelcompositor.com/resources', '/' ),
+			'user'      => $user,
+			'pass'      => $pass,
+			'microsite' => $microsite ? $microsite : 'momiratravel',
+			'base'      => rtrim( $base ? $base : 'https://online.travelcompositor.com/resources', '/' ),
+			'source'    => $from_config ? 'wp-config.php' : 'settings',
 		);
+	}
+
+	/**
+	 * Store credentials entered on the settings screen.
+	 *
+	 * The password is encrypted with a key derived from the site's salts,
+	 * which live in wp-config.php — so a database export alone cannot read it.
+	 *
+	 * @param array $values Raw values from the form.
+	 * @return void
+	 */
+	public static function save_settings( array $values ) {
+		if ( isset( $values['user'] ) ) {
+			update_option( self::OPT_USER, sanitize_text_field( $values['user'] ), false );
+		}
+		if ( isset( $values['microsite'] ) ) {
+			update_option( self::OPT_MICROSITE, sanitize_text_field( $values['microsite'] ), false );
+		}
+		if ( isset( $values['base'] ) ) {
+			update_option( self::OPT_BASE, esc_url_raw( $values['base'] ), false );
+		}
+		// An empty password field means "leave it as it is", so a save of the
+		// other fields never wipes the stored secret.
+		if ( ! empty( $values['pass'] ) ) {
+			update_option( self::OPT_PASS, mwp_encrypt( $values['pass'] ), false );
+		}
+
+		delete_transient( self::TOKEN_TRANSIENT );
+	}
+
+	/**
+	 * Whether a password is stored in the options table.
+	 *
+	 * @return bool
+	 */
+	public static function has_stored_password() {
+		return '' !== (string) get_option( self::OPT_PASS, '' );
 	}
 
 	/**

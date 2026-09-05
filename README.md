@@ -50,6 +50,12 @@ sensitive ends up in a database export, and no admin screen can reveal them.
 4. Put `[multiwander_offers]` in the page content where the offer row should go
 5. **Update**
 
+You enter the ID **once**. The plugin fetches the package in Polish and in
+English and creates both pages, linked as Polylang translations. If you open
+the English country page, the ID box points you back to the Polish one — IDs
+are always managed there, because the Polish country page is the parent the
+package pages hang off.
+
 The package pages are created immediately. Their addresses look like:
 
 ```
@@ -58,6 +64,50 @@ The package pages are created immediately. Their addresses look like:
 
 The slug comes from the Polish title. English pages are created alongside them
 under the English country page and linked as Polylang translations.
+
+### Teaser layouts
+
+The same shortcode renders three ways:
+
+```
+[multiwander_offers]                        three-column row (default)
+[multiwander_offers layout="slider"]        swipeable carousel — good for the home page
+[multiwander_offers layout="single"]        one large featured offer
+```
+
+Other attributes: `columns="2|3|4"` (row only), `limit="6"`,
+`heading="Najpopularniejsze podróże"`, and `ids="59875907 62837980"` to show
+specific packages regardless of which page the shortcode sits on — that last
+one is how you put offers on the home page.
+
+Cards and their buttons link to the package page on multiwander.com. The
+booking hand-off to Travel Compositor happens on the package page itself.
+
+---
+
+## Page template — do this once
+
+**Settings → MultiWander Packages → Package pages.**
+
+Package pages print their own `<h1>` over the hero image. If the theme
+template *also* prints the page title, every package page ends up with two H1
+headings, which weakens it in search. Pick a template that does not display
+the title — on this theme, **"Page Builder (Transparent Header, Without
+Title)"** — and every synced package page gets it automatically.
+
+---
+
+## SEO
+
+- **Structured data**: each package page emits schema.org `TouristTrip`
+  JSON-LD with the price, trip length and the places visited, in the same
+  currency the visitor sees. This is what can earn a rich result in Google;
+  Yoast cannot generate it because it does not know what a travel package is.
+- **Meta description**: generated on first sync from the package's own data
+  ("13-dniowa podróż przez Hanoi, Hue, Da Nang. Już od 10 800 zł za osobę…").
+  A description you write by hand is never overwritten.
+- One H1, H2 per section, descriptive `alt` text on every image, and a link
+  from each package page back up to its country page.
 
 ---
 

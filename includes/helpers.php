@@ -288,6 +288,91 @@ function mwp_languages() {
 }
 
 /**
+ * Encryption key derived from this site's own salts.
+ *
+ * Those salts live in wp-config.php, never in the database, so a stolen
+ * database export on its own cannot decrypt anything stored with this.
+ *
+ * @return string
+ */
+function mwp_crypt_key() {
+	$material = '';
+	foreach ( array( 'AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY' ) as $constant ) {
+		if ( defined( $constant ) ) {
+			$material .= constant( $constant );
+		}
+	}
+	if ( '' === $material ) {
+		// A WordPress install without salts is unusual; fall back to something
+		// site-specific rather than a fixed string.
+		$material = get_site_url() . ABSPATH;
+	}
+	return hash( 'sha256', 'mwp|' . $material, true );
+}
+
+/**
+ * Encrypt a secret for storage in the options table.
+ *
+ * @param string $plaintext Value to protect.
+ * @return string Base64 payload, or '' for empty input.
+ */
+function mwp_encrypt( $plaintext ) {
+	$plaintext = (string) $plaintext;
+	if ( '' === $plaintext ) {
+		return '';
+	}
+	if ( ! function_exists( 'openssl_encrypt' ) ) {
+		// Better to store readable than to lose the value silently; the
+		// settings screen warns when this happens.
+		return 'plain:' . base64_encode( $plaintext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+	}
+
+	$iv     = openssl_random_pseudo_bytes( 16 );
+	$cipher = openssl_encrypt( $plaintext, 'aes-256-cbc', mwp_crypt_key(), OPENSSL_RAW_DATA, $iv );
+	if ( false === $cipher ) {
+		return '';
+	}
+
+	return 'enc:' . base64_encode( $iv . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+}
+
+/**
+ * Decrypt a value written by mwp_encrypt().
+ *
+ * @param string $stored Stored payload.
+ * @return string
+ */
+function mwp_decrypt( $stored ) {
+	$stored = (string) $stored;
+	if ( '' === $stored ) {
+		return '';
+	}
+
+	if ( 0 === strpos( $stored, 'plain:' ) ) {
+		return (string) base64_decode( substr( $stored, 6 ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+	}
+
+	if ( 0 !== strpos( $stored, 'enc:' ) || ! function_exists( 'openssl_decrypt' ) ) {
+		return '';
+	}
+
+	$raw = base64_decode( substr( $stored, 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+	if ( false === $raw || strlen( $raw ) <= 16 ) {
+		return '';
+	}
+
+	$plain = openssl_decrypt(
+		substr( $raw, 16 ),
+		'aes-256-cbc',
+		mwp_crypt_key(),
+		OPENSSL_RAW_DATA,
+		substr( $raw, 0, 16 )
+	);
+
+	return false === $plain ? '' : $plain;
+}
+
+/**
  * Write a line to the plugin log (only when WP_DEBUG is on).
  *
  * @param string $message Message.

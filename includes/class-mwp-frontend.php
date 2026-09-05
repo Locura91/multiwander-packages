@@ -1,10 +1,11 @@
 <?php
 /**
- * Front end: the offer row on country pages, and the package page itself.
+ * Front end: the teaser cards and the package page.
  *
- * Nothing here calls the API. Everything is read from post meta written at
- * sync time, so page loads stay fast and a slow API can never slow the site
- * down — which is what the old scraping shortcode did on every uncached view.
+ * Nothing here calls the API. Everything comes from post meta written at sync
+ * time, so page loads stay fast and a slow Travel Compositor can never slow
+ * the site down — which is exactly what the old scraping shortcode did on
+ * every uncached view.
  *
  * @package multiwander-packages
  */
@@ -21,6 +22,11 @@ class MWP_Frontend {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
 	}
 
+	/**
+	 * Load assets only on pages that actually use them.
+	 *
+	 * @return void
+	 */
 	public static function assets() {
 		if ( ! is_singular( 'page' ) ) {
 			return;
@@ -32,9 +38,10 @@ class MWP_Frontend {
 		}
 
 		$is_package = (bool) get_post_meta( $post->ID, MWP_META_ID, true );
-		$has_row    = has_shortcode( (string) $post->post_content, 'multiwander_offers' );
+		$content    = (string) $post->post_content;
+		$has_offers = has_shortcode( $content, 'multiwander_offers' );
 
-		if ( ! $is_package && ! $has_row ) {
+		if ( ! $is_package && ! $has_offers ) {
 			return;
 		}
 
@@ -44,14 +51,32 @@ class MWP_Frontend {
 			array(),
 			MWPP_asset_version( 'assets/front.css' )
 		);
+
+		// The slider script is only worth its bytes where a slider exists.
+		if ( $has_offers && false !== strpos( $content, 'slider' ) ) {
+			wp_enqueue_script(
+				'mwp-slider',
+				MWP_URL . 'assets/slider.js',
+				array(),
+				MWPP_asset_version( 'assets/slider.js' ),
+				true
+			);
+		}
 	}
 
 	// -----------------------------------------------------------------
-	// Offer row
+	// Teasers
 	// -----------------------------------------------------------------
 
 	/**
-	 * [multiwander_offers] — the preview cards on a country page.
+	 * [multiwander_offers] — teaser cards.
+	 *
+	 * Attributes:
+	 *   layout   row (default) | slider | single
+	 *   ids      explicit package IDs, overriding the page's own list
+	 *   columns  2-4, row layout only
+	 *   limit    maximum cards
+	 *   heading  optional H2 above the cards
 	 *
 	 * Cards are built from the package pages themselves, so removing an ID
 	 * from the meta box drops the card while leaving the page published and
@@ -63,20 +88,76 @@ class MWP_Frontend {
 	public static function offers_shortcode( $atts ) {
 		$atts = shortcode_atts(
 			array(
-				'ids'     => '',   // optional explicit list, overrides the meta box
+				'layout'  => 'row',
+				'ids'     => '',
 				'columns' => 3,
 				'limit'   => 0,
+				'heading' => '',
 			),
 			$atts,
 			'multiwander_offers'
 		);
 
-		$lang = mwp_current_lang();
-		$post = get_post();
+		$layout = in_array( $atts['layout'], array( 'row', 'slider', 'single' ), true )
+			? $atts['layout']
+			: 'row';
 
-		if ( $atts['ids'] ) {
+		$lang  = mwp_current_lang();
+		$pages = self::resolve_pages( $atts['ids'], $lang );
+
+		if ( 'single' === $layout ) {
+			$pages = array_slice( $pages, 0, 1 );
+		} elseif ( $atts['limit'] > 0 ) {
+			$pages = array_slice( $pages, 0, (int) $atts['limit'] );
+		}
+
+		if ( ! $pages ) {
+			// Say nothing to visitors rather than showing a broken row.
+			return current_user_can( 'edit_posts' )
+				? '<p class="mwp mwp-empty">' . esc_html__( 'No travel packages yet — add package IDs in the box below the editor and update the page.', 'multiwander-packages' ) . '</p>'
+				: '';
+		}
+
+		$columns = max( 2, min( 4, (int) $atts['columns'] ) );
+
+		$classes = array( 'mwp', 'mwp-offers', 'mwp-' . $layout );
+		if ( 'row' === $layout ) {
+			$classes[] = 'mwp-cols-' . $columns;
+		}
+
+		ob_start();
+		?>
+		<section class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>">
+			<?php if ( $atts['heading'] ) : ?>
+				<h2 class="mwp-offers-heading"><?php echo esc_html( $atts['heading'] ); ?></h2>
+			<?php endif; ?>
+
+			<?php if ( 'slider' === $layout ) : ?>
+				<button type="button" class="mwp-slider-nav mwp-prev" aria-label="<?php esc_attr_e( 'Previous', 'multiwander-packages' ); ?>">&#8249;</button>
+				<button type="button" class="mwp-slider-nav mwp-next" aria-label="<?php esc_attr_e( 'Next', 'multiwander-packages' ); ?>">&#8250;</button>
+			<?php endif; ?>
+
+			<div class="mwp-grid">
+				<?php foreach ( $pages as $page ) : ?>
+					<?php self::render_card( $page, $lang ); ?>
+				<?php endforeach; ?>
+			</div>
+		</section>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Work out which package pages a shortcode should show.
+	 *
+	 * @param string $ids  Explicit ids attribute, possibly empty.
+	 * @param string $lang Language slug.
+	 * @return WP_Post[]
+	 */
+	protected static function resolve_pages( $ids, $lang ) {
+		if ( $ids ) {
 			$pages = array();
-			foreach ( preg_split( '/[\s,]+/', $atts['ids'] ) as $raw ) {
+			foreach ( preg_split( '/[\s,]+/', $ids ) as $raw ) {
 				$id = mwp_extract_id( $raw );
 				if ( '' === $id ) {
 					continue;
@@ -86,43 +167,28 @@ class MWP_Frontend {
 					$pages[] = get_post( $found );
 				}
 			}
-		} else {
-			if ( ! $post ) {
-				return '';
+			return $pages;
+		}
+
+		$post = get_post();
+		if ( ! $post ) {
+			return array();
+		}
+
+		// On an English page the IDs live on its Polish original.
+		$source_id = $post->ID;
+		if ( 'pl' !== $lang && function_exists( 'pll_get_post' ) ) {
+			$pl = pll_get_post( $post->ID, 'pl' );
+			if ( $pl ) {
+				$source_id = $pl;
 			}
-			// On an English country page, the IDs live on its Polish original.
-			$source_id = $post->ID;
-			if ( 'pl' !== $lang && function_exists( 'pll_get_post' ) ) {
-				$pl = pll_get_post( $post->ID, 'pl' );
-				if ( $pl ) {
-					$source_id = $pl;
-				}
-			}
-			$pages = MWP_Sync::get_package_pages( $source_id, $lang );
 		}
 
-		if ( $atts['limit'] > 0 ) {
-			$pages = array_slice( $pages, 0, (int) $atts['limit'] );
-		}
-
-		if ( ! $pages ) {
-			// Say nothing on the front end rather than showing a broken row.
-			return current_user_can( 'edit_posts' )
-				? '<p class="mwp-empty"><em>' . esc_html__( 'No travel packages yet — add package IDs in the page sidebar and update the page.', 'multiwander-packages' ) . '</em></p>'
-				: '';
-		}
-
-		ob_start();
-		echo '<div class="mwp-offers mwp-cols-' . esc_attr( (int) $atts['columns'] ) . '">';
-		foreach ( $pages as $page ) {
-			self::render_card( $page, $lang );
-		}
-		echo '</div>';
-		return ob_get_clean();
+		return MWP_Sync::get_package_pages( $source_id, $lang );
 	}
 
 	/**
-	 * One offer card.
+	 * One teaser card.
 	 *
 	 * @param WP_Post $page Package page.
 	 * @param string  $lang Language slug.
@@ -134,48 +200,75 @@ class MWP_Frontend {
 			return;
 		}
 
-		$price  = mwp_format_price( $data['price'], $lang );
-		$image  = self::hero_url( $page->ID, $data );
-		$ribbon = $data['ribbon'];
-		$per    = ( 'en' === $lang ) ? __( 'per person', 'multiwander-packages' ) : 'od osoby';
-		$cta    = ( 'en' === $lang ) ? __( 'View trip', 'multiwander-packages' ) : 'Zobacz podróż';
+		$en    = ( 'en' === $lang );
+		$price = mwp_format_price( $data['price'], $lang );
+		$image = self::hero_url( $page->ID, $data );
+		$url   = get_permalink( $page );
+		$title = get_the_title( $page );
+
+		$stops = wp_list_pluck( $data['destinations'], 'name' );
+		$route = $stops ? implode( ' · ', array_slice( $stops, 0, 5 ) ) : '';
+		if ( count( $stops ) > 5 ) {
+			$route .= ' …';
+		}
+
+		$chips = array();
+		if ( $data['duration']['days'] ) {
+			$chips[] = sprintf( $en ? '%d days' : '%d dni', $data['duration']['days'] );
+		}
+		if ( count( $data['destinations'] ) ) {
+			$chips[] = sprintf(
+				$en ? '%d stops' : '%d miejsc',
+				count( $data['destinations'] )
+			);
+		}
+		if ( $data['flights'] ) {
+			$chips[] = $en ? 'Flights included' : 'Z przelotem';
+		}
 		?>
 		<article class="mwp-card">
-			<a class="mwp-card-link" href="<?php echo esc_url( get_permalink( $page ) ); ?>">
-				<div class="mwp-card-media">
-					<?php if ( $image ) : ?>
-						<img src="<?php echo esc_url( $image ); ?>" alt="<?php echo esc_attr( get_the_title( $page ) ); ?>" loading="lazy" decoding="async">
-					<?php endif; ?>
-					<?php if ( $ribbon ) : ?>
-						<span class="mwp-ribbon"><?php echo esc_html( $ribbon ); ?></span>
-					<?php endif; ?>
-				</div>
+			<div class="mwp-card-media">
+				<?php if ( $image ) : ?>
+					<img src="<?php echo esc_url( $image ); ?>"
+						alt="<?php echo esc_attr( sprintf( $en ? 'Trip: %s' : 'Podróż: %s', $title ) ); ?>"
+						loading="lazy" decoding="async">
+				<?php endif; ?>
+				<?php if ( $data['ribbon'] ) : ?>
+					<span class="mwp-ribbon"><?php echo esc_html( $data['ribbon'] ); ?></span>
+				<?php endif; ?>
+			</div>
 
-				<div class="mwp-card-body">
-					<h3 class="mwp-card-title"><?php echo esc_html( get_the_title( $page ) ); ?></h3>
+			<div class="mwp-card-body">
+				<h3 class="mwp-card-title">
+					<a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $title ); ?></a>
+				</h3>
 
-					<?php if ( $data['duration']['days'] ) : ?>
-						<p class="mwp-card-meta">
-							<?php
-							echo esc_html(
-								'en' === $lang
-									? sprintf( '%d days · %d destinations', $data['duration']['days'], max( 1, count( $data['destinations'] ) ) )
-									: sprintf( '%d dni · %d miejsc', $data['duration']['days'], max( 1, count( $data['destinations'] ) ) )
-							);
-							?>
-						</p>
-					<?php endif; ?>
+				<?php if ( $route ) : ?>
+					<p class="mwp-route-line"><?php echo esc_html( $route ); ?></p>
+				<?php endif; ?>
 
+				<?php if ( $chips ) : ?>
+					<ul class="mwp-chips">
+						<?php foreach ( $chips as $chip ) : ?>
+							<li class="mwp-chip"><?php echo esc_html( $chip ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+				<?php endif; ?>
+
+				<div class="mwp-card-foot">
 					<?php if ( $price['value'] ) : ?>
-						<p class="mwp-card-price">
+						<p class="mwp-price">
+							<span class="mwp-price-label"><?php echo esc_html( $en ? 'from' : 'już od' ); ?></span>
 							<span class="mwp-price-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></span>
-							<span class="mwp-price-per"><?php echo esc_html( $per ); ?></span>
+							<span class="mwp-price-per"><?php echo esc_html( $en ? 'per person' : 'od osoby' ); ?></span>
 						</p>
+					<?php else : ?>
+						<span></span>
 					<?php endif; ?>
 
-					<span class="mwp-card-cta"><?php echo esc_html( $cta ); ?></span>
+					<span class="mwp-cta"><?php echo esc_html( $en ? 'View trip' : 'Zobacz podróż' ); ?></span>
 				</div>
-			</a>
+			</div>
 		</article>
 		<?php
 	}
@@ -185,11 +278,11 @@ class MWP_Frontend {
 	// -----------------------------------------------------------------
 
 	/**
-	 * Render the package page body.
+	 * Append the package layout to the page content.
 	 *
-	 * Appended to the_content rather than shipped as a page template, so the
-	 * page keeps whatever theme template the country pages use and an editor
-	 * can still add their own copy above it.
+	 * Done through the_content rather than a bundled page template so the page
+	 * keeps whatever theme template the rest of the site uses, and an editor
+	 * can still write their own copy above it.
 	 *
 	 * @param string $content Existing content.
 	 * @return string
@@ -209,15 +302,17 @@ class MWP_Frontend {
 			return $content;
 		}
 
-		$lang = mwp_current_lang();
-
 		ob_start();
-		self::render_package( $post_id, $data, $lang );
+		self::render_package( $post_id, $data, mwp_current_lang() );
 		return $content . ob_get_clean();
 	}
 
 	/**
-	 * The full package layout.
+	 * The package layout.
+	 *
+	 * Heading order is deliberate: one H1 in the hero, H2 per section. If the
+	 * active page template also prints the title there would be two H1s, which
+	 * is why the sync applies the "no title" template chosen in settings.
 	 *
 	 * @param int    $post_id Post.
 	 * @param array  $d       Payload.
@@ -225,85 +320,105 @@ class MWP_Frontend {
 	 * @return void
 	 */
 	protected static function render_package( $post_id, array $d, $lang ) {
-		$en    = ( 'en' === $lang );
-		$price = mwp_format_price( $d['price'], $lang );
-		$hero  = self::hero_url( $post_id, $d );
-
-		$t = function ( $pl, $english ) use ( $en ) {
+		$en = ( 'en' === $lang );
+		$t  = function ( $pl, $english ) use ( $en ) {
 			return $en ? $english : $pl;
 		};
+
+		$price  = mwp_format_price( $d['price'], $lang );
+		$hero   = self::hero_url( $post_id, $d );
+		$title  = get_the_title( $post_id );
+		$parent = wp_get_post_parent_id( $post_id );
 		?>
-		<div class="mwp-package">
+		<div class="mwp mwp-package">
 
-			<?php if ( $hero ) : ?>
-				<div class="mwp-hero">
-					<img src="<?php echo esc_url( $hero ); ?>" alt="<?php echo esc_attr( get_the_title( $post_id ) ); ?>" loading="eager" decoding="async">
+			<header class="mwp-hero">
+				<?php if ( $hero ) : ?>
+					<img src="<?php echo esc_url( $hero ); ?>"
+						alt="<?php echo esc_attr( $title ); ?>"
+						fetchpriority="high" decoding="async">
+				<?php endif; ?>
+				<div class="mwp-hero-overlay">
+					<?php if ( $d['ribbon'] ) : ?>
+						<span class="mwp-eyebrow"><?php echo esc_html( $d['ribbon'] ); ?></span>
+					<?php endif; ?>
+					<h1 class="mwp-title"><?php echo esc_html( $title ); ?></h1>
 				</div>
-			<?php endif; ?>
+			</header>
 
-			<div class="mwp-summary">
+			<div class="mwp-bar">
 				<?php if ( $price['value'] ) : ?>
-					<div class="mwp-summary-price">
-						<span class="mwp-from"><?php echo esc_html( $t( 'od', 'from' ) ); ?></span>
-						<span class="mwp-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></span>
-						<span class="mwp-per"><?php echo esc_html( $t( 'od osoby', 'per person' ) ); ?></span>
-					</div>
+					<p class="mwp-bar-price">
+						<span class="mwp-price-label"><?php echo esc_html( $t( 'już od', 'from' ) ); ?></span>
+						<span class="mwp-bar-amount"><?php echo esc_html( $price['value'] ); ?> <?php echo esc_html( $price['symbol'] ); ?></span>
+						<span class="mwp-price-per"><?php echo esc_html( $t( 'od osoby', 'per person' ) ); ?></span>
+					</p>
 				<?php endif; ?>
 
 				<ul class="mwp-facts">
 					<?php if ( $d['duration']['days'] ) : ?>
-						<li><strong><?php echo esc_html( $d['duration']['days'] ); ?></strong> <?php echo esc_html( $t( 'dni', 'days' ) ); ?></li>
+						<li class="mwp-fact"><b><?php echo esc_html( $d['duration']['days'] ); ?></b><span><?php echo esc_html( $t( 'dni', 'days' ) ); ?></span></li>
 					<?php endif; ?>
 					<?php if ( $d['duration']['nights'] ) : ?>
-						<li><strong><?php echo esc_html( $d['duration']['nights'] ); ?></strong> <?php echo esc_html( $t( 'nocy', 'nights' ) ); ?></li>
+						<li class="mwp-fact"><b><?php echo esc_html( $d['duration']['nights'] ); ?></b><span><?php echo esc_html( $t( 'nocy', 'nights' ) ); ?></span></li>
 					<?php endif; ?>
 					<?php if ( $d['destinations'] ) : ?>
-						<li><strong><?php echo esc_html( count( $d['destinations'] ) ); ?></strong> <?php echo esc_html( $t( 'miejsc', 'destinations' ) ); ?></li>
+						<li class="mwp-fact"><b><?php echo esc_html( count( $d['destinations'] ) ); ?></b><span><?php echo esc_html( $t( 'miejsc', 'stops' ) ); ?></span></li>
 					<?php endif; ?>
 					<?php if ( $d['flights'] ) : ?>
-						<li><strong><?php echo esc_html( count( $d['flights'] ) ); ?></strong> <?php echo esc_html( $t( 'przelotów', 'flights' ) ); ?></li>
+						<li class="mwp-fact"><b><?php echo esc_html( count( $d['flights'] ) ); ?></b><span><?php echo esc_html( $t( 'przeloty', 'flights' ) ); ?></span></li>
+					<?php endif; ?>
+					<?php if ( $d['hotels'] ) : ?>
+						<li class="mwp-fact"><b><?php echo esc_html( count( $d['hotels'] ) ); ?></b><span><?php echo esc_html( $t( 'hotele', 'hotels' ) ); ?></span></li>
 					<?php endif; ?>
 				</ul>
 
-				<?php if ( ! $d['departures']['is_empty'] && $d['departures']['first'] ) : ?>
-					<p class="mwp-departure">
-						<?php
-						echo esc_html( sprintf(
-							$t( 'np. z wylotem %s', 'e.g. departing %s' ),
-							date_i18n( get_option( 'date_format' ), strtotime( $d['departures']['first'] ) )
-						) );
-						?>
-					</p>
-				<?php else : ?>
-					<p class="mwp-departure"><?php echo esc_html( $t( 'Wylot możliwy w dowolnym terminie', 'Departs any day you choose' ) ); ?></p>
-				<?php endif; ?>
-
 				<?php if ( $d['booking_url'] ) : ?>
-					<a class="mwp-book" href="<?php echo esc_url( $d['booking_url'] ); ?>" target="_blank" rel="noopener">
-						<?php echo esc_html( $t( 'Sprawdź i zarezerwuj', 'Check availability & book' ) ); ?>
+					<a class="mwp-cta" href="<?php echo esc_url( $d['booking_url'] ); ?>" target="_blank" rel="noopener">
+						<?php echo esc_html( $t( 'Sprawdź termin i cenę', 'Check dates & price' ) ); ?>
 					</a>
 				<?php endif; ?>
+
+				<p class="mwp-note">
+					<?php
+					echo esc_html(
+						$d['departures']['is_empty']
+							? $t( 'Wylot w dowolnym terminie — trasę, hotele i lotnisko dopasujemy do Ciebie.', 'Departs any day — route, hotels and departure airport all adjustable.' )
+							: sprintf(
+								$t( 'Najbliższy wylot: %s. Trasę i hotele dopasujemy do Ciebie.', 'Next departure: %s. Route and hotels fully adjustable.' ),
+								date_i18n( get_option( 'date_format' ), strtotime( $d['departures']['first'] ) )
+							)
+					);
+					?>
+				</p>
 			</div>
 
 			<?php if ( $d['description'] ) : ?>
-				<div class="mwp-description"><?php echo wp_kses_post( $d['description'] ); ?></div>
+				<section class="mwp-section">
+					<h2><?php echo esc_html( sprintf( $t( 'O podróży: %s', 'About this trip: %s' ), $title ) ); ?></h2>
+					<div class="mwp-prose"><?php echo wp_kses_post( $d['description'] ); ?></div>
+				</section>
 			<?php endif; ?>
 
 			<?php if ( $d['destinations'] ) : ?>
-				<section class="mwp-section mwp-route">
-					<h2><?php echo esc_html( $t( 'Trasa podróży', 'Your route' ) ); ?></h2>
-					<ol class="mwp-route-list">
-						<?php foreach ( $d['destinations'] as $dest ) : ?>
-							<li>
-								<span class="mwp-route-name"><?php echo esc_html( $dest['name'] ); ?></span>
-								<?php if ( $dest['country'] ) : ?>
-									<span class="mwp-route-country"><?php echo esc_html( $dest['country'] ); ?></span>
-								<?php endif; ?>
-								<?php if ( $dest['to_day'] ) : ?>
-									<span class="mwp-route-days">
-										<?php echo esc_html( sprintf( $t( 'dzień %1$d–%2$d', 'day %1$d–%2$d' ), $dest['from_day'], $dest['to_day'] ) ); ?>
-									</span>
-								<?php endif; ?>
+				<section class="mwp-section">
+					<h2><?php echo esc_html( $t( 'Trasa', 'The route' ) ); ?></h2>
+					<p class="mwp-section-intro">
+						<?php echo esc_html( $t( 'Każdy przystanek możesz wydłużyć, skrócić lub zamienić.', 'Every stop can be extended, shortened or swapped.' ) ); ?>
+					</p>
+					<ol class="mwp-route">
+						<?php foreach ( $d['destinations'] as $stop ) : ?>
+							<li class="mwp-stop">
+								<b><?php echo esc_html( $stop['name'] ); ?></b>
+								<span>
+									<?php
+									$bits = array_filter( array(
+										$stop['country'],
+										$stop['to_day'] ? sprintf( $t( 'dzień %1$d–%2$d', 'day %1$d–%2$d' ), $stop['from_day'], $stop['to_day'] ) : '',
+									) );
+									echo esc_html( implode( ' · ', $bits ) );
+									?>
+								</span>
 							</li>
 						<?php endforeach; ?>
 					</ol>
@@ -312,20 +427,20 @@ class MWP_Frontend {
 
 			<?php foreach ( $d['tours'] as $tour ) : ?>
 				<?php if ( ! $tour['description'] ) { continue; } ?>
-				<section class="mwp-section mwp-tour">
+				<section class="mwp-section">
 					<h2><?php echo esc_html( $tour['name'] ); ?></h2>
-					<div class="mwp-tour-body"><?php echo wp_kses_post( $tour['description'] ); ?></div>
+					<div class="mwp-prose"><?php echo wp_kses_post( $tour['description'] ); ?></div>
 
 					<?php if ( $tour['included'] || $tour['not_included'] ) : ?>
 						<div class="mwp-inclusions">
 							<?php if ( $tour['included'] ) : ?>
-								<div class="mwp-included">
+								<div class="mwp-inc">
 									<h3><?php echo esc_html( $t( 'W cenie', 'Included' ) ); ?></h3>
 									<?php echo wp_kses_post( $tour['included'] ); ?>
 								</div>
 							<?php endif; ?>
 							<?php if ( $tour['not_included'] ) : ?>
-								<div class="mwp-not-included">
+								<div class="mwp-exc">
 									<h3><?php echo esc_html( $t( 'Nie zawiera', 'Not included' ) ); ?></h3>
 									<?php echo wp_kses_post( $tour['not_included'] ); ?>
 								</div>
@@ -336,41 +451,41 @@ class MWP_Frontend {
 			<?php endforeach; ?>
 
 			<?php if ( $d['hotels'] ) : ?>
-				<section class="mwp-section mwp-hotels">
-					<h2><?php echo esc_html( $t( 'Hotele', 'Hotels' ) ); ?></h2>
-					<ul class="mwp-hotel-list">
+				<section class="mwp-section">
+					<h2><?php echo esc_html( $t( 'Hotele w tej podróży', 'Where you stay' ) ); ?></h2>
+					<p class="mwp-section-intro">
+						<?php echo esc_html( $t( 'Przykładowy dobór hoteli — każdy możesz wymienić na inny.', 'A suggested selection — any hotel can be swapped.' ) ); ?>
+					</p>
+					<ul class="mwp-hotels">
 						<?php foreach ( $d['hotels'] as $hotel ) : ?>
 							<li class="mwp-hotel">
 								<?php if ( ! empty( $hotel['images'][0] ) ) : ?>
-									<img class="mwp-hotel-img" src="<?php echo esc_url( $hotel['images'][0] ); ?>" alt="<?php echo esc_attr( $hotel['name'] ); ?>" loading="lazy" decoding="async">
+									<img src="<?php echo esc_url( $hotel['images'][0] ); ?>"
+										alt="<?php echo esc_attr( sprintf( $t( 'Hotel %1$s, %2$s', '%1$s hotel in %2$s' ), $hotel['name'], $hotel['destination'] ) ); ?>"
+										loading="lazy" decoding="async">
 								<?php endif; ?>
 								<div class="mwp-hotel-body">
 									<h3>
 										<?php echo esc_html( $hotel['name'] ); ?>
 										<?php if ( $hotel['stars'] ) : ?>
-											<span class="mwp-stars" aria-label="<?php echo esc_attr( sprintf( $t( '%d gwiazdek', '%d stars' ), $hotel['stars'] ) ); ?>">
-												<?php echo esc_html( str_repeat( '★', $hotel['stars'] ) ); ?>
-											</span>
+											<span class="mwp-stars" aria-label="<?php echo esc_attr( sprintf( $t( '%d gwiazdek', '%d stars' ), $hotel['stars'] ) ); ?>"><?php echo esc_html( str_repeat( '★', $hotel['stars'] ) ); ?></span>
 										<?php endif; ?>
 									</h3>
-									<?php if ( $hotel['destination'] || $hotel['nights'] ) : ?>
-										<p class="mwp-hotel-meta">
-											<?php
-											$bits = array_filter( array(
-												$hotel['destination'],
-												$hotel['nights'] ? sprintf( $t( '%d nocy', '%d nights' ), $hotel['nights'] ) : '',
-												$hotel['meal_plan'],
-											) );
-											echo esc_html( implode( ' · ', $bits ) );
-											?>
-										</p>
+									<?php
+									$meta = array_filter( array(
+										$hotel['destination'],
+										$hotel['nights'] ? sprintf( $t( '%d nocy', '%d nights' ), $hotel['nights'] ) : '',
+										$hotel['meal_plan'],
+										$hotel['room_type'],
+									) );
+									?>
+									<?php if ( $meta ) : ?>
+										<p class="mwp-hotel-meta"><?php echo esc_html( implode( ' · ', $meta ) ); ?></p>
 									<?php endif; ?>
 									<?php if ( $hotel['score'] ) : ?>
-										<p class="mwp-hotel-score">
-											<strong><?php echo esc_html( number_format( $hotel['score']['score'], 1 ) ); ?></strong>/10
-											<span class="mwp-hotel-source">
-												<?php echo esc_html( sprintf( $t( '%1$s, %2$d opinii', '%1$s, %2$d reviews' ), $hotel['score']['source'], $hotel['score']['reviews'] ) ); ?>
-											</span>
+										<p class="mwp-score">
+											<b><?php echo esc_html( number_format_i18n( $hotel['score']['score'], 1 ) ); ?></b>/10
+											<?php echo esc_html( sprintf( $t( '%1$s · %2$s opinii', '%1$s · %2$s reviews' ), $hotel['score']['source'], number_format_i18n( $hotel['score']['reviews'] ) ) ); ?>
 										</p>
 									<?php endif; ?>
 								</div>
@@ -381,39 +496,41 @@ class MWP_Frontend {
 			<?php endif; ?>
 
 			<?php if ( $d['flights'] ) : ?>
-				<section class="mwp-section mwp-flights">
+				<section class="mwp-section">
 					<h2><?php echo esc_html( $t( 'Przeloty', 'Flights' ) ); ?></h2>
-					<ul class="mwp-flight-list">
+					<p class="mwp-section-intro">
+						<?php echo esc_html( $t( 'Lotnisko wylotu jest dowolne — Kraków, Warszawa, Wrocław, Berlin i inne.', 'Depart from any airport — Kraków, Warsaw, Wrocław, Berlin and more.' ) ); ?>
+					</p>
+					<ul class="mwp-flights">
 						<?php foreach ( $d['flights'] as $f ) : ?>
 							<li class="mwp-flight">
-								<span class="mwp-flight-route"><?php echo esc_html( $f['from'] . ' → ' . $f['to'] ); ?></span>
-								<span class="mwp-flight-airline"><?php echo esc_html( $f['airline'] ); ?></span>
+								<b><?php echo esc_html( $f['from'] . ' → ' . $f['to'] ); ?></b>
+								<?php echo esc_html( $f['airline'] ); ?>
 								<?php if ( $f['duration'] ) : ?>
-									<span class="mwp-flight-duration"><?php echo esc_html( $f['duration'] ); ?></span>
+									<span><?php echo esc_html( $f['duration'] ); ?></span>
 								<?php endif; ?>
 								<?php if ( $f['baggage'] ) : ?>
-									<span class="mwp-flight-bag"><?php echo esc_html( $f['baggage'] ); ?></span>
+									<span><?php echo esc_html( $f['baggage'] ); ?></span>
 								<?php endif; ?>
 							</li>
 						<?php endforeach; ?>
 					</ul>
-					<p class="mwp-flight-note"><?php echo esc_html( $t( 'Lotnisko wylotu i terminy możesz dowolnie zmienić.', 'Departure airport and dates are fully flexible.' ) ); ?></p>
 				</section>
 			<?php endif; ?>
 
 			<?php if ( $d['activities'] ) : ?>
-				<section class="mwp-section mwp-activities">
-					<h2><?php echo esc_html( $t( 'W programie', 'Experiences included' ) ); ?></h2>
-					<ul class="mwp-activity-list">
+				<section class="mwp-section">
+					<h2><?php echo esc_html( $t( 'W programie', 'What you will do' ) ); ?></h2>
+					<ul class="mwp-hotels">
 						<?php foreach ( $d['activities'] as $a ) : ?>
-							<li class="mwp-activity">
+							<li class="mwp-hotel">
 								<?php if ( ! empty( $a['images'][0] ) ) : ?>
 									<img src="<?php echo esc_url( $a['images'][0] ); ?>" alt="<?php echo esc_attr( $a['name'] ); ?>" loading="lazy" decoding="async">
 								<?php endif; ?>
-								<div>
+								<div class="mwp-hotel-body">
 									<h3><?php echo esc_html( $a['name'] ); ?></h3>
 									<?php if ( $a['duration'] ) : ?>
-										<p class="mwp-activity-meta"><?php echo esc_html( $a['duration'] ); ?></p>
+										<p class="mwp-hotel-meta"><?php echo esc_html( $a['duration'] ); ?></p>
 									<?php endif; ?>
 								</div>
 							</li>
@@ -422,39 +539,50 @@ class MWP_Frontend {
 				</section>
 			<?php endif; ?>
 
-			<?php if ( count( $d['gallery'] ) > 1 ) : ?>
-				<section class="mwp-section mwp-gallery">
-					<h2><?php echo esc_html( $t( 'Galeria', 'Gallery' ) ); ?></h2>
-					<div class="mwp-gallery-grid">
-						<?php foreach ( array_slice( $d['gallery'], 0, 12 ) as $url ) : ?>
-							<img src="<?php echo esc_url( $url ); ?>" alt="" loading="lazy" decoding="async">
+			<?php if ( count( $d['gallery'] ) > 3 ) : ?>
+				<section class="mwp-section">
+					<h2><?php echo esc_html( sprintf( $t( '%s w obrazach', '%s in pictures' ), $title ) ); ?></h2>
+					<div class="mwp-gallery">
+						<?php foreach ( array_slice( $d['gallery'], 0, 12 ) as $i => $url ) : ?>
+							<img src="<?php echo esc_url( $url ); ?>"
+								alt="<?php echo esc_attr( sprintf( '%s — %d', $title, $i + 1 ) ); ?>"
+								loading="lazy" decoding="async">
 						<?php endforeach; ?>
 					</div>
 				</section>
 			<?php endif; ?>
 
-			<?php if ( $d['booking_url'] ) : ?>
-				<div class="mwp-cta-final">
-					<p><?php echo esc_html( $t( 'Ta podróż jest w pełni elastyczna — zmień hotele, terminy i lotnisko wylotu.', 'This trip is fully customisable — change hotels, dates and departure airport.' ) ); ?></p>
-					<a class="mwp-book" href="<?php echo esc_url( $d['booking_url'] ); ?>" target="_blank" rel="noopener">
-						<?php echo esc_html( $t( 'Sprawdź i zarezerwuj', 'Check availability & book' ) ); ?>
+			<section class="mwp-final">
+				<h2><?php echo esc_html( $t( 'Ta podróż, po Twojemu', 'Make this trip yours' ) ); ?></h2>
+				<p>
+					<?php echo esc_html( $t( 'Zmień terminy, hotele, lotnisko wylotu i długość pobytu w każdym miejscu. Sprawdź aktualną cenę i dostępność w kilka sekund.', 'Change the dates, the hotels, your departure airport and how long you stay in each place. Check live pricing and availability in seconds.' ) ); ?>
+				</p>
+				<?php if ( $d['booking_url'] ) : ?>
+					<a class="mwp-cta" href="<?php echo esc_url( $d['booking_url'] ); ?>" target="_blank" rel="noopener">
+						<?php echo esc_html( $t( 'Sprawdź termin i cenę', 'Check dates & price' ) ); ?>
 					</a>
-				</div>
-			<?php endif; ?>
+				<?php endif; ?>
+				<?php if ( $parent ) : ?>
+					<br>
+					<a class="mwp-back" href="<?php echo esc_url( get_permalink( $parent ) ); ?>">
+						<?php echo esc_html( sprintf( $t( '← Więcej podróży: %s', '← More trips: %s' ), get_the_title( $parent ) ) ); ?>
+					</a>
+				<?php endif; ?>
+			</section>
 
 		</div>
 		<?php
 	}
 
 	/**
-	 * Hero image URL: manual override, then the imported featured image, then
-	 * the Travel Compositor URL as a last resort.
+	 * Hero image: manual override, then the imported featured image, then the
+	 * Travel Compositor URL as a last resort.
 	 *
 	 * @param int   $post_id Post.
 	 * @param array $data    Payload.
 	 * @return string
 	 */
-	protected static function hero_url( $post_id, array $data ) {
+	public static function hero_url( $post_id, array $data ) {
 		$override = get_post_meta( $post_id, MWP_META_IMAGE, true );
 		if ( $override ) {
 			return $override;
@@ -467,6 +595,6 @@ class MWP_Frontend {
 			}
 		}
 
-		return $data['hero_image'];
+		return isset( $data['hero_image'] ) ? $data['hero_image'] : '';
 	}
 }
