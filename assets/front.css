@@ -50,15 +50,23 @@
    ================================================================= */
 
 /* Country pages run edge to edge through the page builder, so contain the
-   section here rather than relying on a wrapper that may not exist. */
-.mwp-offers,
-.mwp-package {
-	width: 100%;
-	max-width: var(--mwp-max);
+   section here rather than relying on a wrapper that may not exist.
+
+   min() rather than max-width alone: inside an already-narrow column the
+   section shrinks to fit instead of overflowing it. Applied to .mwp itself so
+   nothing the plugin outputs can ever run wider than the rest of the site. */
+.mwp {
+	width: min(1280px, 100%);
 	margin-left: auto;
 	margin-right: auto;
 	padding-left: 20px;
 	padding-right: 20px;
+	box-sizing: border-box;
+}
+
+.mwp *,
+.mwp *::before,
+.mwp *::after {
 	box-sizing: border-box;
 }
 
@@ -1109,4 +1117,153 @@
 		padding: 0 16px 12px;
 		text-align: left;
 	}
+}
+
+/* =================================================================
+   Mobile
+   =================================================================
+   The product page is one column below 900px (the sticky price card
+   becomes a normal block at the top), and everything that sits on a
+   row on desktop wraps rather than squeezing.
+   ================================================================= */
+
+@media (max-width: 899px) {
+
+	.mwp {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.mwp-hero {
+		border-radius: 10px;
+	}
+
+	/* A 16:7 hero is a letterbox slit on a phone. */
+	.mwp-hero img {
+		aspect-ratio: 4 / 3;
+	}
+
+	.mwp-hero-overlay {
+		padding: 60px 18px 18px;
+	}
+
+	.mwp-title {
+		font-size: clamp(1.3rem, 6vw, 1.8rem);
+	}
+
+	.mwp-top {
+		margin-top: 20px;
+		gap: 22px;
+	}
+
+	.mwp-pricecard {
+		padding: 20px 18px;
+	}
+
+	.mwp-section {
+		margin: 30px 0;
+	}
+
+	.mwp-item-body {
+		padding: 14px;
+	}
+
+	.mwp-item-gallery {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.mwp-item-gallery img {
+		aspect-ratio: 3 / 2;
+	}
+
+	/* Three thumbnails on a narrow screen become two plus a wide one. */
+	.mwp-item-gallery img:first-child:nth-last-child(3) {
+		grid-column: span 2;
+	}
+
+	.mwp-includes li {
+		flex: 1 1 calc(50% - 5px);
+		justify-content: center;
+	}
+
+	.mwp-gallery {
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+		gap: 8px;
+	}
+
+	.mwp-final {
+		padding: 24px 18px;
+	}
+}
+
+@media (max-width: 600px) {
+
+	.mwp-card-body {
+		padding: 18px 16px 20px;
+	}
+
+	.mwp-card-title {
+		font-size: 1.08rem;
+	}
+
+	/* Price and button stack rather than colliding on a narrow card. */
+	.mwp-card-foot {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 12px;
+	}
+
+	.mwp-card-foot .mwp-cta {
+		text-align: center;
+	}
+
+	.mwp-offers {
+		margin-top: 24px;
+		margin-bottom: 24px;
+	}
+
+	.mwp-offers-heading {
+		font-size: 1.25rem;
+	}
+
+	.mwp-dests,
+	.mwp-themes li {
+		font-size: .9rem;
+	}
+
+	.mwp-facts {
+		gap: 8px 16px;
+	}
+
+	.mwp-fact b {
+		font-size: 1.05rem;
+	}
+
+	.mwp-inclusions {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Long unbroken strings — hotel names, airport codes, URLs in descriptions —
+   must not force the page to scroll sideways. */
+.mwp-item-title,
+.mwp-card-title,
+.mwp-prose,
+.mwp-item-text {
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+}
+
+.mwp-prose img,
+.mwp-item-text img {
+	height: auto;
+	border-radius: var(--mwp-radius);
+}
+
+/* Tables occasionally appear inside TC descriptions. */
+.mwp-prose table,
+.mwp-item-text table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
 }
