@@ -1,0 +1,451 @@
+/**
+ * MultiWander Packages — front-end styles.
+ *
+ * Deliberately low-specificity and self-contained so the Inspiro child theme
+ * keeps control of typography and colour. Only layout and the few pieces the
+ * theme has no opinion about are set here.
+ */
+
+.mwp-offers {
+	display: grid;
+	gap: 24px;
+	margin: 32px 0;
+}
+
+@media (min-width: 700px) {
+	.mwp-cols-2 { grid-template-columns: repeat(2, 1fr); }
+	.mwp-cols-3 { grid-template-columns: repeat(3, 1fr); }
+	.mwp-cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1100px) {
+	.mwp-cols-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---------- Offer card ---------- */
+
+.mwp-card {
+	position: relative;
+	overflow: hidden;
+	border-radius: 12px;
+	box-shadow: 0 2px 14px rgba(0, 0, 0, .12);
+	transition: transform .2s ease, box-shadow .2s ease;
+	background: #fff;
+}
+
+.mwp-card:hover,
+.mwp-card:focus-within {
+	transform: translateY(-3px);
+	box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+}
+
+.mwp-card-link {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	text-decoration: none;
+	color: inherit;
+}
+
+.mwp-card-media {
+	position: relative;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	background: #eceff1;
+}
+
+.mwp-card-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	transition: transform .4s ease;
+}
+
+.mwp-card:hover .mwp-card-media img {
+	transform: scale(1.04);
+}
+
+.mwp-ribbon {
+	position: absolute;
+	top: 12px;
+	left: 0;
+	padding: 5px 14px;
+	background: #ff7b25;
+	color: #fff;
+	font-size: .78rem;
+	font-weight: 700;
+	letter-spacing: .02em;
+	border-radius: 0 4px 4px 0;
+}
+
+.mwp-card-body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 18px 18px 20px;
+	flex: 1;
+}
+
+.mwp-card-title {
+	margin: 0;
+	font-size: 1.15rem;
+	line-height: 1.35;
+}
+
+.mwp-card-meta {
+	margin: 0;
+	font-size: .85rem;
+	opacity: .72;
+}
+
+.mwp-card-price {
+	margin: 4px 0 0;
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.mwp-price-amount {
+	font-size: 1.5rem;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.mwp-price-per {
+	font-size: .8rem;
+	opacity: .7;
+}
+
+.mwp-card-cta {
+	margin-top: auto;
+	padding-top: 12px;
+	font-weight: 600;
+	font-size: .9rem;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.mwp-empty {
+	padding: 16px;
+	border: 1px dashed #c3c8cc;
+	border-radius: 8px;
+	opacity: .8;
+}
+
+/* ---------- Package page ---------- */
+
+.mwp-package {
+	margin: 28px 0;
+}
+
+.mwp-hero {
+	border-radius: 14px;
+	overflow: hidden;
+	margin-bottom: 26px;
+	aspect-ratio: 21 / 9;
+	background: #eceff1;
+}
+
+.mwp-hero img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.mwp-summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 18px 28px;
+	padding: 22px;
+	border-radius: 12px;
+	background: #f5f7f8;
+	margin-bottom: 28px;
+}
+
+.mwp-summary-price {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.mwp-from {
+	font-size: .9rem;
+	opacity: .7;
+}
+
+.mwp-amount {
+	font-size: 2rem;
+	font-weight: 900;
+	line-height: 1;
+}
+
+.mwp-per {
+	font-size: .85rem;
+	opacity: .7;
+}
+
+.mwp-facts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 22px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: .92rem;
+}
+
+.mwp-facts strong {
+	font-size: 1.15rem;
+}
+
+.mwp-departure {
+	width: 100%;
+	margin: 0;
+	font-size: .88rem;
+	opacity: .75;
+}
+
+.mwp-book {
+	display: inline-block;
+	padding: 13px 26px;
+	border-radius: 8px;
+	background: #ff7b25;
+	color: #fff;
+	font-weight: 700;
+	text-decoration: none;
+	transition: filter .2s ease;
+}
+
+.mwp-book:hover,
+.mwp-book:focus {
+	filter: brightness(.92);
+	color: #fff;
+}
+
+.mwp-section {
+	margin: 36px 0;
+}
+
+.mwp-section > h2 {
+	margin: 0 0 16px;
+	font-size: 1.5rem;
+}
+
+/* Route */
+
+.mwp-route-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.mwp-route-list li {
+	padding: 10px 16px;
+	border-radius: 8px;
+	background: #f5f7f8;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 130px;
+}
+
+.mwp-route-name {
+	font-weight: 700;
+}
+
+.mwp-route-country,
+.mwp-route-days {
+	font-size: .8rem;
+	opacity: .7;
+}
+
+/* Inclusions */
+
+.mwp-inclusions {
+	display: grid;
+	gap: 22px;
+	margin-top: 20px;
+}
+
+@media (min-width: 760px) {
+	.mwp-inclusions { grid-template-columns: 1fr 1fr; }
+}
+
+.mwp-inclusions h3 {
+	margin: 0 0 8px;
+	font-size: 1.05rem;
+}
+
+.mwp-included  { border-left: 3px solid #2e9e5b; padding-left: 16px; }
+.mwp-not-included { border-left: 3px solid #c9ccd0; padding-left: 16px; }
+
+.mwp-inclusions ul {
+	margin: 0;
+	padding-left: 18px;
+	font-size: .92rem;
+	line-height: 1.6;
+}
+
+/* Hotels */
+
+.mwp-hotel-list,
+.mwp-activity-list,
+.mwp-flight-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 16px;
+}
+
+.mwp-hotel {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px;
+	padding: 14px;
+	border-radius: 10px;
+	background: #f5f7f8;
+}
+
+@media (min-width: 640px) {
+	.mwp-hotel { grid-template-columns: 190px 1fr; }
+}
+
+.mwp-hotel-img {
+	width: 100%;
+	height: 100%;
+	min-height: 130px;
+	object-fit: cover;
+	border-radius: 7px;
+	display: block;
+}
+
+.mwp-hotel-body h3 {
+	margin: 0 0 6px;
+	font-size: 1.1rem;
+}
+
+.mwp-stars {
+	color: #f5a623;
+	font-size: .95rem;
+	margin-left: 6px;
+	white-space: nowrap;
+}
+
+.mwp-hotel-meta,
+.mwp-hotel-score {
+	margin: 0 0 4px;
+	font-size: .88rem;
+}
+
+.mwp-hotel-score strong {
+	font-size: 1.05rem;
+}
+
+.mwp-hotel-source {
+	opacity: .65;
+	font-size: .8rem;
+	margin-left: 4px;
+}
+
+/* Flights */
+
+.mwp-flight {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 16px;
+	padding: 12px 16px;
+	border-radius: 8px;
+	background: #f5f7f8;
+	font-size: .92rem;
+}
+
+.mwp-flight-route {
+	font-weight: 700;
+	min-width: 110px;
+}
+
+.mwp-flight-duration,
+.mwp-flight-bag {
+	opacity: .7;
+	font-size: .85rem;
+}
+
+.mwp-flight-note {
+	margin-top: 12px;
+	font-size: .86rem;
+	opacity: .72;
+}
+
+/* Activities */
+
+.mwp-activity {
+	display: grid;
+	grid-template-columns: 84px 1fr;
+	gap: 14px;
+	align-items: center;
+}
+
+.mwp-activity img {
+	width: 84px;
+	height: 84px;
+	object-fit: cover;
+	border-radius: 8px;
+	display: block;
+}
+
+.mwp-activity h3 {
+	margin: 0 0 3px;
+	font-size: 1rem;
+}
+
+.mwp-activity-meta {
+	margin: 0;
+	font-size: .84rem;
+	opacity: .7;
+}
+
+/* Gallery */
+
+.mwp-gallery-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 10px;
+}
+
+.mwp-gallery-grid img {
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	object-fit: cover;
+	border-radius: 8px;
+	display: block;
+}
+
+/* Final CTA */
+
+.mwp-cta-final {
+	margin: 40px 0 10px;
+	padding: 26px;
+	border-radius: 12px;
+	background: #f5f7f8;
+	text-align: center;
+}
+
+.mwp-cta-final p {
+	margin: 0 0 16px;
+	font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mwp-card,
+	.mwp-card-media img {
+		transition: none;
+	}
+}

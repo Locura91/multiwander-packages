@@ -1,0 +1,39 @@
+/**
+ * MultiWander Packages — admin styles.
+ */
+
+.mwp-help {
+	color: #646970;
+	font-size: 12px;
+	display: block;
+	margin-top: 4px;
+}
+
+.mwp-table {
+	margin-top: 14px;
+}
+
+.mwp-table td,
+.mwp-table th {
+	padding: 8px 10px;
+}
+
+.mwp-permalink {
+	font-size: 12px;
+	color: #646970;
+}
+
+.mwp-ok {
+	color: #00a32a;
+	font-weight: 700;
+}
+
+.mwp-bad {
+	color: #d63638;
+	font-weight: 700;
+}
+
+#mwp-country-packages textarea {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 13px;
+}

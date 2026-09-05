@@ -1,0 +1,12 @@
+# WordPress / build noise
+*.zip
+node_modules/
+vendor/
+.DS_Store
+Thumbs.db
+
+# Never commit credentials — they live in wp-config.php on the server
+wp-config.php
+*.env
+tc_creds.txt
+secrets*.toml
