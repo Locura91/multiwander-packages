@@ -85,6 +85,25 @@ booking hand-off to Travel Compositor happens on the package page itself.
 
 ---
 
+## Updating
+
+The plugin updates itself from this repository. After a change is pushed to
+`main`, WordPress shows the usual **"There is a new version available"** notice
+on the Plugins screen — click **update now**. No zip to download or upload.
+
+The check is cached for six hours; **Check for updates** under the plugin row
+forces it immediately.
+
+Two things to know:
+
+- The version number in `multiwander-packages.php` is what triggers it. Bump it
+  in the same commit as the change, or WordPress will not see an update.
+- The site runs WP Super Cache and Autoptimize. After updating, click **Delete
+  Cache** in the admin bar and hard-refresh (Ctrl+F5), or you will be looking at
+  the old CSS on the new markup.
+
+---
+
 ## Page template — do this once
 
 **Settings → MultiWander Packages → Package pages.**
