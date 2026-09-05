@@ -116,11 +116,49 @@ class MWP_Admin {
 		<textarea name="mwp_package_ids" rows="6" class="large-text code" spellcheck="false"
 			placeholder="59875907&#10;62837980&#10;56175367"><?php echo esc_textarea( $raw ); ?></textarea>
 
+		<?php
+		$heading = get_post_meta( $source, MWP_META_HEADING, true );
+		$sub     = get_post_meta( $source, MWP_META_SUB, true );
+		$layout  = get_post_meta( $source, MWP_META_LAYOUT, true );
+		$layout  = $layout ? $layout : 'row';
+		?>
+
+		<table class="form-table mwp-form">
+			<tr>
+				<th><label for="mwp_offers_heading"><?php esc_html_e( 'Section title', 'multiwander-packages' ); ?></label></th>
+				<td>
+					<input type="text" id="mwp_offers_heading" name="mwp_offers_heading" class="large-text"
+						value="<?php echo esc_attr( $heading ); ?>"
+						placeholder="<?php esc_attr_e( 'Nasze wycieczki łączone po Kambodży', 'multiwander-packages' ); ?>">
+					<span class="mwp-help"><?php esc_html_e( 'Shown above the offers as a heading. Leave empty for no title.', 'multiwander-packages' ); ?></span>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="mwp_offers_sub"><?php esc_html_e( 'Subtitle', 'multiwander-packages' ); ?></label></th>
+				<td>
+					<input type="text" id="mwp_offers_sub" name="mwp_offers_sub" class="large-text"
+						value="<?php echo esc_attr( $sub ); ?>"
+						placeholder="<?php esc_attr_e( 'Zacznij od przykładowego pakietu – zmień loty, hotele i transfery.', 'multiwander-packages' ); ?>">
+					<span class="mwp-help"><?php esc_html_e( 'Optional line under the title.', 'multiwander-packages' ); ?></span>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="mwp_offers_layout"><?php esc_html_e( 'Layout', 'multiwander-packages' ); ?></label></th>
+				<td>
+					<select id="mwp_offers_layout" name="mwp_offers_layout">
+						<option value="row" <?php selected( $layout, 'row' ); ?>><?php esc_html_e( 'Row — three side by side', 'multiwander-packages' ); ?></option>
+						<option value="slider" <?php selected( $layout, 'slider' ); ?>><?php esc_html_e( 'Slider — swipeable carousel', 'multiwander-packages' ); ?></option>
+						<option value="single" <?php selected( $layout, 'single' ); ?>><?php esc_html_e( 'Single — one large offer', 'multiwander-packages' ); ?></option>
+					</select>
+				</td>
+			</tr>
+		</table>
+
 		<p class="mwp-help">
 			<?php
 			printf(
 				/* translators: %s: shortcode */
-				esc_html__( 'Put %s in the page content where the offer row should appear.', 'multiwander-packages' ),
+				esc_html__( 'The offers are placed on the page automatically. To control exactly where they appear, put %s in the page content instead — everything above still applies.', 'multiwander-packages' ),
 				'<code>[multiwander_offers]</code>'
 			);
 			?>
@@ -279,6 +317,17 @@ class MWP_Admin {
 		}
 
 		update_post_meta( $source, MWP_META_IDS, implode( "\n", $clean ) );
+
+		if ( isset( $_POST['mwp_offers_heading'] ) ) {
+			update_post_meta( $source, MWP_META_HEADING, sanitize_text_field( wp_unslash( $_POST['mwp_offers_heading'] ) ) );
+		}
+		if ( isset( $_POST['mwp_offers_sub'] ) ) {
+			update_post_meta( $source, MWP_META_SUB, sanitize_text_field( wp_unslash( $_POST['mwp_offers_sub'] ) ) );
+		}
+		if ( isset( $_POST['mwp_offers_layout'] ) ) {
+			$layout = sanitize_key( wp_unslash( $_POST['mwp_offers_layout'] ) );
+			update_post_meta( $source, MWP_META_LAYOUT, in_array( $layout, array( 'row', 'slider', 'single' ), true ) ? $layout : 'row' );
+		}
 
 		if ( $rejected ) {
 			set_transient(

@@ -3,7 +3,7 @@
  * Plugin Name:       MultiWander Packages
  * Plugin URI:        https://multiwander.com/
  * Description:       Pulls Travel Compositor Holiday Packages into MultiWander. Enter a package ID on a country page; the plugin creates the package page underneath it (PL + EN, linked via Polylang) and renders the offer preview row.
- * Version:           1.3.0
+ * Version:           1.4.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Momira Travel
@@ -26,13 +26,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MWP_VERSION', '1.3.0' );
+define( 'MWP_VERSION', '1.4.0' );
 define( 'MWP_FILE', __FILE__ );
 define( 'MWP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MWP_URL', plugin_dir_url( __FILE__ ) );
 
 /** Post meta keys. Kept in one place so nothing drifts. */
 define( 'MWP_META_IDS', '_mwp_package_ids' );      // on the country page: the IDs entered
+define( 'MWP_META_HEADING', '_mwp_offers_heading' ); // on the country page: section title
+define( 'MWP_META_SUB', '_mwp_offers_sub' );        // on the country page: section subtitle
+define( 'MWP_META_LAYOUT', '_mwp_offers_layout' );  // on the country page: row|slider|single
 define( 'MWP_META_ID', '_mwp_package_id' );        // on a package page: its TC id
 define( 'MWP_META_DATA', '_mwp_package_data' );    // on a package page: normalised payload
 define( 'MWP_META_SYNCED', '_mwp_synced_at' );     // on a package page: last sync timestamp

@@ -46,10 +46,36 @@
    Teaser cards
    ================================================================= */
 
-.mwp-offers {
+/* Country pages run edge to edge through the page builder, so contain the
+   section here rather than relying on a wrapper that may not exist. */
+.mwp-offers,
+.mwp-package {
 	width: 100%;
 	max-width: var(--mwp-max);
-	margin: 32px auto;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 20px;
+	padding-right: 20px;
+	box-sizing: border-box;
+}
+
+.mwp-offers {
+	margin-top: 32px;
+	margin-bottom: 32px;
+}
+
+.mwp-offers-heading {
+	margin: 0 0 6px;
+	font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+	text-align: center;
+}
+
+.mwp-offers-sub {
+	margin: 0 auto 26px;
+	max-width: 60ch;
+	text-align: center;
+	color: var(--mwp-muted);
+	font-size: .98rem;
 }
 
 .mwp-grid {
@@ -249,7 +275,6 @@
 
 .mwp-slider {
 	position: relative;
-	padding: 0 20px;
 }
 
 .mwp-slider .mwp-grid {

@@ -39,11 +39,19 @@ class MWP_Frontend {
 
 		$is_package = (bool) get_post_meta( $post->ID, MWP_META_ID, true );
 		$content    = (string) $post->post_content;
-		$has_offers = has_shortcode( $content, 'multiwander_offers' );
+		$source     = MWP_Sync::source_country_id( $post->ID );
+		$has_ids    = (bool) MWP_Sync::get_package_ids( $source );
+
+		// Offers may be placed by the shortcode or appended automatically, so
+		// the presence of IDs counts too — otherwise auto-placed cards would
+		// render unstyled.
+		$has_offers = has_shortcode( $content, 'multiwander_offers' ) || $has_ids;
 
 		if ( ! $is_package && ! $has_offers ) {
 			return;
 		}
+
+		$layout = (string) get_post_meta( $source, MWP_META_LAYOUT, true );
 
 		wp_enqueue_style(
 			'mwp-front',
@@ -53,7 +61,7 @@ class MWP_Frontend {
 		);
 
 		// The slider script is only worth its bytes where a slider exists.
-		if ( $has_offers && false !== strpos( $content, 'slider' ) ) {
+		if ( $has_offers && ( 'slider' === $layout || false !== strpos( $content, 'layout="slider"' ) ) ) {
 			wp_enqueue_script(
 				'mwp-slider',
 				MWP_URL . 'assets/slider.js',
@@ -86,17 +94,22 @@ class MWP_Frontend {
 	 * @return string
 	 */
 	public static function offers_shortcode( $atts ) {
-		$atts = shortcode_atts(
-			array(
-				'layout'  => 'row',
-				'ids'     => '',
-				'columns' => 3,
-				'limit'   => 0,
-				'heading' => '',
-			),
-			$atts,
-			'multiwander_offers'
+		// Settings live on the page, in the same box as the IDs. Shortcode
+		// attributes are only an override for the odd case where one page
+		// needs something different.
+		$page   = get_post();
+		$source = $page ? MWP_Sync::source_country_id( $page->ID ) : 0;
+
+		$defaults = array(
+			'layout'  => $source ? ( get_post_meta( $source, MWP_META_LAYOUT, true ) ?: 'row' ) : 'row',
+			'ids'     => '',
+			'columns' => 3,
+			'limit'   => 0,
+			'heading' => $source ? (string) get_post_meta( $source, MWP_META_HEADING, true ) : '',
+			'sub'     => $source ? (string) get_post_meta( $source, MWP_META_SUB, true ) : '',
 		);
+
+		$atts = shortcode_atts( $defaults, $atts, 'multiwander_offers' );
 
 		$layout = in_array( $atts['layout'], array( 'row', 'slider', 'single' ), true )
 			? $atts['layout']
@@ -130,6 +143,10 @@ class MWP_Frontend {
 		<section class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>">
 			<?php if ( $atts['heading'] ) : ?>
 				<h2 class="mwp-offers-heading"><?php echo esc_html( $atts['heading'] ); ?></h2>
+			<?php endif; ?>
+
+			<?php if ( $atts['sub'] ) : ?>
+				<p class="mwp-offers-sub"><?php echo esc_html( $atts['sub'] ); ?></p>
 			<?php endif; ?>
 
 			<?php if ( 'slider' === $layout ) : ?>
@@ -297,8 +314,12 @@ class MWP_Frontend {
 		}
 
 		$post_id = get_the_ID();
+
 		if ( ! get_post_meta( $post_id, MWP_META_ID, true ) ) {
-			return $content;
+			// Not a package page — but it may be a country page whose offers
+			// should be placed automatically. The shortcode is only needed
+			// when the section has to sit at a particular spot in the content.
+			return self::maybe_append_offers( $content, $post_id );
 		}
 
 		$data = MWP_Sync::get_data( $post_id );
@@ -309,6 +330,35 @@ class MWP_Frontend {
 		ob_start();
 		self::render_package( $post_id, $data, mwp_current_lang() );
 		return $content . ob_get_clean();
+	}
+
+	/**
+	 * Place a country page's offers automatically.
+	 *
+	 * If the editor has entered package IDs but not placed the shortcode
+	 * anywhere, the section is appended to the content so the offers appear
+	 * without them having to touch a block. Adding the shortcode gives them
+	 * control over exactly where it sits instead.
+	 *
+	 * @param string $content Page content.
+	 * @param int    $post_id Page.
+	 * @return string
+	 */
+	protected static function maybe_append_offers( $content, $post_id ) {
+		if ( has_shortcode( $content, 'multiwander_offers' ) ) {
+			return $content;
+		}
+
+		$source = MWP_Sync::source_country_id( $post_id );
+		if ( ! MWP_Sync::get_package_ids( $source ) ) {
+			return $content;
+		}
+
+		if ( ! apply_filters( 'mwp_auto_place_offers', true, $post_id ) ) {
+			return $content;
+		}
+
+		return $content . self::offers_shortcode( array() );
 	}
 
 	/**

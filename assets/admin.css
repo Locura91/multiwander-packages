@@ -37,3 +37,12 @@
 	font-family: Menlo, Consolas, monospace;
 	font-size: 13px;
 }
+
+.mwp-form th {
+	width: 150px;
+	padding-left: 0;
+}
+
+.mwp-form td {
+	padding-left: 0;
+}
