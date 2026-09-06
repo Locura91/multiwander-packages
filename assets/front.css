@@ -1999,3 +1999,164 @@
 	margin: 0;
 	display: inline;
 }
+
+/* =================================================================
+   Date and traveller picker
+   =================================================================
+   The same choice the booking engine asks for on arrival, made here
+   instead, so the visitor answers it once.
+   ================================================================= */
+
+.mwp-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.mwp-field {
+	position: relative;
+	display: block;
+}
+
+.mwp-field > span {
+	display: block;
+	margin-bottom: 5px;
+	font-size: .78rem;
+	font-weight: 600;
+	color: var(--mwp-muted);
+	text-transform: uppercase;
+	letter-spacing: .04em;
+}
+
+.mwp .mwp-date,
+.mwp .mwp-party-toggle {
+	width: 100%;
+	padding: 11px 14px;
+	border: 1px solid var(--border-color, #ddd);
+	border-radius: var(--cta-button-border-radius, 8px);
+	background: #fff;
+	font-family: var(--mwp-body);
+	font-size: .95rem;
+	color: var(--text-darker, #111827);
+	box-sizing: border-box;
+	text-align: left;
+}
+
+.mwp .mwp-party-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.mwp .mwp-date:focus,
+.mwp .mwp-party-toggle:focus {
+	outline: none;
+	border-color: var(--mwp-brand, #17a398);
+	box-shadow: 0 0 0 3px rgba(23, 163, 152, .15);
+}
+
+.mwp-caret {
+	color: var(--mwp-muted);
+	font-size: .8rem;
+}
+
+.mwp-party {
+	position: absolute;
+	z-index: 20;
+	left: 0;
+	right: 0;
+	top: calc(100% + 6px);
+	padding: 14px;
+	border: 1px solid var(--border-color, #ddd);
+	border-radius: 12px;
+	background: #fff;
+	box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .3);
+}
+
+.mwp-party[hidden] {
+	display: none;
+}
+
+.mwp-counter {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 8px 0;
+}
+
+.mwp-counter-label b {
+	display: block;
+	font-family: var(--mwp-head);
+	font-size: .95rem;
+	font-weight: 600;
+	color: var(--text-darker, #111827);
+}
+
+.mwp-counter-label small {
+	font-size: .78rem;
+	color: var(--mwp-muted);
+}
+
+.mwp-counter-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.mwp .mwp-minus,
+.mwp .mwp-plus {
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 1px solid var(--border-color, #ddd);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--text-darker, #111827);
+	font-size: 1.05rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: border-color .2s ease, color .2s ease;
+}
+
+.mwp .mwp-minus:hover:not(:disabled),
+.mwp .mwp-plus:hover:not(:disabled) {
+	border-color: var(--mwp-brand, #17a398);
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp .mwp-minus:disabled,
+.mwp .mwp-plus:disabled {
+	opacity: .35;
+	cursor: not-allowed;
+}
+
+.mwp-value {
+	min-width: 22px;
+	text-align: center;
+	font-family: var(--mwp-head);
+	font-weight: 600;
+}
+
+.mwp-party-note {
+	margin: 6px 0 12px;
+	font-size: .78rem;
+	color: var(--mwp-muted);
+}
+
+.mwp .mwp-party-done {
+	width: 100%;
+}
+
+/* The theme prints the page title; the package layout prints its own H1
+   below the images. The filter removes it from the HTML — this is only a
+   safety net for templates that render it some other way. */
+body.mwp-package-page .entry-header > .entry-title:empty,
+body.mwp-package-page .page-header > .entry-title:empty,
+body.mwp-package-page h1.entry-title:empty,
+body.mwp-package-page h1.page-title:empty {
+	display: none;
+}

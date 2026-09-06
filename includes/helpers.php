@@ -312,6 +312,79 @@ function mwp_booking_url( array $data, $lang = 'pl' ) {
 }
 
 /**
+ * Traveller limits, matching what Travel Compositor itself accepts.
+ *
+ * @return array{max_pax:int,max_rooms:int,max_adults:int,max_children:int}
+ */
+function mwp_booking_limits() {
+	return apply_filters( 'mwp_booking_limits', array(
+		'max_pax'      => 9,
+		'max_rooms'    => 4,
+		'max_adults'   => 9,
+		'max_children' => 8,   // at least one adult must travel
+	) );
+}
+
+/**
+ * Append a chosen date and party size to a booking URL.
+ *
+ * IMPORTANT — the parameter NAMES here are the one unverified thing in this
+ * plugin. momira.travel and online.travelcompositor.com both refuse automated
+ * requests, so they could not be read from a real booking link. They follow
+ * Travel Compositor's usual naming and are wired through a filter so they can
+ * be corrected in one place once a real link has been inspected:
+ *
+ *     add_filter( 'mwp_booking_query_args', function ( $args, $selection ) {
+ *         return array( 'fecha' => $selection['date'] );   // e.g.
+ *     }, 10, 2 );
+ *
+ * If the names turn out to be wrong the booking engine simply ignores them and
+ * asks for the dates itself, exactly as it does today — nothing breaks, the
+ * pre-selection just does not carry across.
+ *
+ * @param string $url       Base booking URL.
+ * @param array  $selection date, adults, children, rooms.
+ * @return string
+ */
+function mwp_booking_url_with_selection( $url, array $selection ) {
+	if ( '' === $url ) {
+		return '';
+	}
+
+	$limits = mwp_booking_limits();
+
+	$date     = isset( $selection['date'] ) ? preg_replace( '/[^0-9-]/', '', $selection['date'] ) : '';
+	$adults   = isset( $selection['adults'] ) ? (int) $selection['adults'] : 2;
+	$children = isset( $selection['children'] ) ? (int) $selection['children'] : 0;
+	$rooms    = isset( $selection['rooms'] ) ? (int) $selection['rooms'] : 1;
+
+	$adults   = max( 1, min( $limits['max_adults'], $adults ) );
+	$children = max( 0, min( $limits['max_children'], $children ) );
+	$rooms    = max( 1, min( $limits['max_rooms'], $rooms ) );
+
+	// Never send a party the engine cannot accept.
+	if ( $adults + $children > $limits['max_pax'] ) {
+		$children = max( 0, $limits['max_pax'] - $adults );
+	}
+	$rooms = min( $rooms, $adults );
+
+	$args = array(
+		'departureDate' => $date,
+		'adults'        => $adults,
+		'children'      => $children,
+		'rooms'         => $rooms,
+	);
+
+	if ( '' === $date ) {
+		unset( $args['departureDate'] );
+	}
+
+	$args = (array) apply_filters( 'mwp_booking_query_args', $args, $selection );
+
+	return $args ? add_query_arg( array_map( 'rawurlencode', $args ), $url ) : $url;
+}
+
+/**
  * The Contact Form 7 form for a language.
  *
  * The Polish page must show the Polish form and the English page the English

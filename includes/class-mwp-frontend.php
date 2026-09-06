@@ -19,6 +19,8 @@ class MWP_Frontend {
 	public static function init() {
 		add_shortcode( 'multiwander_offers', array( __CLASS__, 'offers_shortcode' ) );
 		add_filter( 'the_content', array( __CLASS__, 'package_content' ), 20 );
+		add_filter( 'the_title', array( __CLASS__, 'suppress_theme_title' ), 5, 2 );
+		add_filter( 'body_class', array( __CLASS__, 'body_class' ) );
 		// Priority 100: the child theme enqueues its stylesheet at 20, so at the
 		// default 10 this file would load FIRST and lose every specificity tie
 		// to it — which is exactly what turned the buttons turquoise-on-
@@ -90,6 +92,60 @@ class MWP_Frontend {
 				true
 			);
 		}
+	}
+
+	/**
+	 * Stop the theme printing the page title on a package page.
+	 *
+	 * The package layout prints its own H1 under the image collage. When the
+	 * theme's template prints the title as well, the visitor sees the trip name
+	 * twice and the page ships two H1 headings — which search engines read as a
+	 * page that cannot decide what it is about.
+	 *
+	 * Removing it here takes it out of the HTML entirely, rather than hiding it
+	 * with CSS and leaving the duplicate heading in the source.
+	 *
+	 * Deliberately narrow: only inside the main loop, only for the page being
+	 * viewed. Navigation menus, breadcrumbs, admin lists and the document title
+	 * all run outside the loop and keep their titles.
+	 *
+	 * @param string $title   Title.
+	 * @param int    $post_id Post ID (absent in some legacy callers).
+	 * @return string
+	 */
+	public static function suppress_theme_title( $title, $post_id = 0 ) {
+		if ( is_admin() || ! in_the_loop() || ! is_main_query() || ! is_singular( 'page' ) ) {
+			return $title;
+		}
+
+		$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+
+		if ( $post_id !== (int) get_queried_object_id() ) {
+			return $title;
+		}
+
+		if ( ! get_post_meta( $post_id, MWP_META_ID, true ) ) {
+			return $title;
+		}
+
+		if ( ! apply_filters( 'mwp_suppress_theme_title', true, $post_id ) ) {
+			return $title;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Mark package pages so the stylesheet can adjust theme chrome.
+	 *
+	 * @param array $classes Body classes.
+	 * @return array
+	 */
+	public static function body_class( $classes ) {
+		if ( is_singular( 'page' ) && get_post_meta( get_queried_object_id(), MWP_META_ID, true ) ) {
+			$classes[] = 'mwp-package-page';
+		}
+		return $classes;
 	}
 
 	// -----------------------------------------------------------------
@@ -436,8 +492,11 @@ class MWP_Frontend {
 
 		$price   = mwp_format_price( $d['price'], $lang );
 		$hero    = self::hero_url( $post_id, $d );
-		$title   = get_the_title( $post_id );
-		$parent  = wp_get_post_parent_id( $post_id );
+		// Read the raw title: the_title is filtered above to stop the theme
+		// printing it, and that filter must not blank our own heading.
+		$post_obj = get_post( $post_id );
+		$title    = $post_obj ? $post_obj->post_title : '';
+		$parent   = wp_get_post_parent_id( $post_id );
 		$booking = mwp_booking_url( $d, $lang );
 		$items   = MWP_Timeline::build( $d, $lang );
 		$adults  = max( 1, (int) $d['counters']['adults'] );
@@ -508,11 +567,72 @@ class MWP_Frontend {
 				<aside class="mwp-aside">
 					<div class="mwp-pricecard">
 						<?php if ( $booking ) : ?>
+							<?php
+							$limits    = mwp_booking_limits();
+							$first_day = $d['departures']['is_empty']
+								? gmdate( 'Y-m-d', time() + 21 * DAY_IN_SECONDS )
+								: $d['departures']['first'];
+							?>
+
+							<div class="mwp-picker"
+								data-mwp-picker
+								data-url="<?php echo esc_url( $booking ); ?>"
+								data-max-pax="<?php echo esc_attr( $limits['max_pax'] ); ?>"
+								data-max-rooms="<?php echo esc_attr( $limits['max_rooms'] ); ?>">
+
+								<label class="mwp-field">
+									<span><?php echo esc_html( $t( 'Data rozpoczęcia', 'Start date' ) ); ?></span>
+									<input type="date" class="mwp-date"
+										value="<?php echo esc_attr( $first_day ); ?>"
+										min="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
+								</label>
+
+								<div class="mwp-field">
+									<span><?php echo esc_html( $t( 'Podróżni i pokoje', 'Travellers & rooms' ) ); ?></span>
+
+									<button type="button" class="mwp-party-toggle" aria-expanded="false">
+										<span class="mwp-party-summary"></span>
+										<span class="mwp-caret" aria-hidden="true">▾</span>
+									</button>
+
+									<div class="mwp-party" hidden>
+										<?php
+										$counters = array(
+											'rooms'    => array( $t( 'Pokoje', 'Rooms' ), $t( 'maks. %d', 'max %d' ), $limits['max_rooms'], 1 ),
+											'adults'   => array( $t( 'Dorośli', 'Adults' ), '18+', $limits['max_adults'], 2 ),
+											'children' => array( $t( 'Dzieci', 'Children' ), '0–17', $limits['max_children'], 0 ),
+										);
+										?>
+										<?php foreach ( $counters as $key => $row ) : ?>
+											<div class="mwp-counter" data-counter="<?php echo esc_attr( $key ); ?>">
+												<span class="mwp-counter-label">
+													<b><?php echo esc_html( $row[0] ); ?></b>
+													<small><?php echo esc_html( false !== strpos( $row[1], '%d' ) ? sprintf( $row[1], $row[2] ) : $row[1] ); ?></small>
+												</span>
+												<span class="mwp-counter-controls">
+													<button type="button" class="mwp-minus" aria-label="−">&minus;</button>
+													<output class="mwp-value"><?php echo esc_html( $row[3] ); ?></output>
+													<button type="button" class="mwp-plus" aria-label="+">+</button>
+												</span>
+											</div>
+										<?php endforeach; ?>
+
+										<p class="mwp-party-note">
+											<?php echo esc_html( sprintf( $t( 'Maksymalnie %1$d osób i %2$d pokoje.', 'Up to %1$d travellers and %2$d rooms.' ), $limits['max_pax'], $limits['max_rooms'] ) ); ?>
+										</p>
+
+										<button type="button" class="mwp-btn mwp-btn-primary mwp-party-done">
+											<?php echo esc_html( $t( 'Akceptuję', 'Done' ) ); ?>
+										</button>
+									</div>
+								</div>
+							</div>
+
 							<div class="mwp-actions">
-								<a class="mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
-									<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
+								<a class="mwp-btn mwp-btn-primary mwp-book" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+									<?php echo esc_html( $t( 'Sprawdź i zarezerwuj', 'Check & book' ) ); ?>
 								</a>
-								<a class="mwp-btn" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<a class="mwp-btn mwp-book" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 									<?php echo esc_html( $t( 'Dostosuj podróż', 'Configure this trip' ) ); ?>
 								</a>
 								<?php if ( mwp_contact_form_id( $lang ) ) : ?>
