@@ -3,7 +3,7 @@
  * Plugin Name:       MultiWander Packages
  * Plugin URI:        https://multiwander.com/
  * Description:       Pulls Travel Compositor Holiday Packages into MultiWander. Enter a package ID on a country page; the plugin creates the package page underneath it (PL + EN, linked via Polylang) and renders the offer preview row.
- * Version:           1.12.0
+ * Version:           1.16.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Momira Travel
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MWP_VERSION', '1.12.0' );
+define( 'MWP_VERSION', '1.16.0' );
 define( 'MWP_FILE', __FILE__ );
 define( 'MWP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MWP_URL', plugin_dir_url( __FILE__ ) );
@@ -52,11 +52,13 @@ require_once MWP_DIR . 'includes/class-mwp-admin.php';
 require_once MWP_DIR . 'includes/class-mwp-frontend.php';
 require_once MWP_DIR . 'includes/class-mwp-seo.php';
 require_once MWP_DIR . 'includes/class-mwp-updater.php';
+require_once MWP_DIR . 'includes/class-mwp-cron.php';
 
 add_action( 'plugins_loaded', function () {
 	MWP_Admin::init();
 	MWP_Frontend::init();
 	MWP_SEO::init();
+	MWP_Cron::init();
 
 	if ( is_admin() ) {
 		MWP_Updater::init();
@@ -70,5 +72,6 @@ register_activation_hook( __FILE__, function () {
 } );
 
 register_deactivation_hook( __FILE__, function () {
+	MWP_Cron::clear();
 	flush_rewrite_rules();
 } );

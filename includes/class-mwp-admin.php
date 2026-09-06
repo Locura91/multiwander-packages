@@ -109,12 +109,47 @@ class MWP_Admin {
 		}
 		?>
 		<p class="mwp-help">
-			<strong><?php esc_html_e( 'One Holiday Package ID per line — numbers only.', 'multiwander-packages' ); ?></strong>
-			<?php esc_html_e( 'The order here is the order the offers appear on the page. (If you paste a whole momira.travel address by mistake, the ID is pulled out of it and the list tidies itself when you update.)', 'multiwander-packages' ); ?>
+			<strong><?php esc_html_e( 'One Holiday Package ID per box — numbers only.', 'multiwander-packages' ); ?></strong>
+			<?php esc_html_e( 'The order of the boxes is the order the offers appear on the page. Pasting a whole momira.travel address works too — the ID is picked out of it.', 'multiwander-packages' ); ?>
 		</p>
 
-		<textarea name="mwp_package_ids" rows="6" class="large-text code" spellcheck="false"
-			placeholder="59875907&#10;62837980&#10;56175367"><?php echo esc_textarea( $raw ); ?></textarea>
+		<div class="mwp-ids" data-mwp-ids>
+			<?php
+			// One row per ID, plus a spare so there is always somewhere to type.
+			$rows = $ids;
+			$rows[] = '';
+
+			foreach ( $rows as $index => $value ) :
+				$page_id = $value ? MWP_Sync::find_package_page( $value, 'pl' ) : 0;
+				?>
+				<div class="mwp-id-row">
+					<span class="mwp-id-num"><?php echo esc_html( $index + 1 ); ?>.</span>
+
+					<input type="text"
+						name="mwp_package_ids[]"
+						value="<?php echo esc_attr( $value ); ?>"
+						class="mwp-id-input"
+						inputmode="numeric"
+						autocomplete="off"
+						spellcheck="false"
+						maxlength="12"
+						placeholder="59875907">
+
+					<span class="mwp-id-note">
+						<?php if ( $page_id ) : ?>
+							<span class="mwp-ok">&#10003;</span>
+							<a href="<?php echo esc_url( (string) get_edit_post_link( $page_id ) ); ?>"><?php echo esc_html( get_the_title( $page_id ) ); ?></a>
+						<?php endif; ?>
+					</span>
+
+					<button type="button" class="button-link mwp-id-remove" aria-label="<?php esc_attr_e( 'Remove this ID', 'multiwander-packages' ); ?>">&times;</button>
+				</div>
+			<?php endforeach; ?>
+		</div>
+
+		<p>
+			<button type="button" class="button mwp-id-add"><?php esc_html_e( '+ Add another package', 'multiwander-packages' ); ?></button>
+		</p>
 
 		<?php
 		$heading = get_post_meta( $source, MWP_META_HEADING, true );
@@ -297,16 +332,22 @@ class MWP_Admin {
 		// source language and the Polish country page is the parent the
 		// package pages hang off. Editing the English page must not build the
 		// tree under the English parent.
-		$raw    = sanitize_textarea_field( wp_unslash( $_POST['mwp_package_ids'] ) );
+		$submitted = wp_unslash( $_POST['mwp_package_ids'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+
+		// The box is now one field per package. A plain string may still arrive
+		// from an older saved layout or a programmatic save, so handle both.
+		$lines = is_array( $submitted )
+			? array_map( 'sanitize_text_field', $submitted )
+			: preg_split( '/[\r\n]+/', sanitize_textarea_field( $submitted ) );
+
 		$source = MWP_Sync::source_country_id( $post_id );
 
-		// Normalise to one bare numeric ID per line, so the box always ends up
-		// in the simple form the editor is asked for — and say plainly which
-		// lines could not be read rather than dropping them in silence.
+		// Normalise to bare numeric IDs and say plainly which entries could not
+		// be read, rather than dropping them in silence.
 		$clean    = array();
 		$rejected = array();
 
-		foreach ( preg_split( '/[\r\n]+/', $raw ) as $line ) {
+		foreach ( (array) $lines as $line ) {
 			$line = trim( $line );
 			if ( '' === $line ) {
 				continue;
@@ -403,12 +444,12 @@ class MWP_Admin {
 		if ( $rejected ) {
 			delete_transient( $bad_key );
 			echo '<div class="notice notice-warning is-dismissible"><p><strong>' .
-				esc_html__( 'These lines were not a package ID and have been removed:', 'multiwander-packages' ) .
+				esc_html__( 'These entries were not a package ID and have been removed:', 'multiwander-packages' ) .
 				'</strong></p><ul style="margin-left:1.5em;list-style:disc">';
 			foreach ( (array) $rejected as $line ) {
 				echo '<li><code>' . esc_html( $line ) . '</code></li>';
 			}
-			echo '</ul><p>' . esc_html__( 'A package ID is a number, for example 59875907. One per line.', 'multiwander-packages' ) . '</p></div>';
+			echo '</ul><p>' . esc_html__( 'A package ID is a number, for example 59875907. One per box.', 'multiwander-packages' ) . '</p></div>';
 		}
 
 		$key    = self::NOTICE_TRANSIENT . get_current_user_id();
@@ -474,6 +515,31 @@ class MWP_Admin {
 			delete_transient( MWP_Client::TOKEN_TRANSIENT );
 			echo '<div class="notice notice-success"><p>' .
 				sprintf( esc_html__( 'Cleared %d cached responses.', 'multiwander-packages' ), (int) $n ) .
+				'</p></div>';
+		}
+
+		if ( isset( $_POST['mwp_save_sync'] ) && check_admin_referer( 'mwp_sync_settings' ) ) {
+			update_option( MWP_Cron::OPT_ENABLED, isset( $_POST['mwp_cron_enabled'] ) ? 1 : 0, false );
+			update_option( 'mwp_cf7_pl', sanitize_text_field( wp_unslash( $_POST['mwp_cf7_pl'] ?? '' ) ), false );
+			update_option( 'mwp_cf7_en', sanitize_text_field( wp_unslash( $_POST['mwp_cf7_en'] ?? '' ) ), false );
+
+			// Take the new schedule setting into account immediately.
+			MWP_Cron::clear();
+			MWP_Cron::ensure_schedule();
+
+			echo '<div class="notice notice-success"><p>' .
+				esc_html__( 'Saved.', 'multiwander-packages' ) . '</p></div>';
+		}
+
+		if ( isset( $_GET['mwp_synced'] ) ) {
+			$report = get_option( MWP_Cron::OPT_REPORT, array() );
+			echo '<div class="notice notice-success"><p>' .
+				sprintf(
+					/* translators: 1: country pages, 2: packages */
+					esc_html__( 'Synced %1$d country pages and %2$d packages.', 'multiwander-packages' ),
+					isset( $report['pages'] ) ? (int) $report['pages'] : 0,
+					isset( $report['packages'] ) ? (int) $report['packages'] : 0
+				) .
 				'</p></div>';
 		}
 
@@ -559,6 +625,78 @@ class MWP_Admin {
 					<p><button class="button button-primary" name="mwp_save_credentials" value="1"><?php esc_html_e( 'Save credentials', 'multiwander-packages' ); ?></button></p>
 				<?php endif; ?>
 			</form>
+
+			<hr>
+
+			<h2><?php esc_html_e( 'Keeping packages up to date', 'multiwander-packages' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Prices and content change in Travel Compositor without anyone touching the WordPress page. A scheduled refresh keeps the site from advertising figures that no longer exist.', 'multiwander-packages' ); ?>
+			</p>
+
+			<form method="post">
+				<?php wp_nonce_field( 'mwp_sync_settings' ); ?>
+				<table class="form-table">
+					<tr>
+						<th><?php esc_html_e( 'Automatic refresh', 'multiwander-packages' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="mwp_cron_enabled" value="1" <?php checked( MWP_Cron::enabled() ); ?>>
+								<?php esc_html_e( 'Refresh packages from Travel Compositor daily', 'multiwander-packages' ); ?>
+							</label>
+							<span class="mwp-help">
+								<?php
+								$last = get_option( MWP_Cron::OPT_LAST, '' );
+								$next = wp_next_scheduled( MWP_Cron::HOOK );
+
+								if ( $last ) {
+									printf(
+										/* translators: %s: date */
+										esc_html__( 'Last run: %s.', 'multiwander-packages' ),
+										esc_html( $last )
+									);
+									echo ' ';
+								}
+								if ( $next ) {
+									printf(
+										/* translators: %s: date */
+										esc_html__( 'Next run: %s.', 'multiwander-packages' ),
+										esc_html( date_i18n( 'Y-m-d H:i', $next ) )
+									);
+								}
+								?>
+								<br>
+								<?php esc_html_e( 'A few country pages are refreshed on each run rather than all at once, so a large site never exceeds the PHP time limit. Over a few days every page comes round.', 'multiwander-packages' ); ?>
+							</span>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="mwp_cf7_pl"><?php esc_html_e( 'Enquiry form (Polish)', 'multiwander-packages' ); ?></label></th>
+						<td>
+							<input type="text" id="mwp_cf7_pl" name="mwp_cf7_pl" class="regular-text"
+								value="<?php echo esc_attr( get_option( 'mwp_cf7_pl', '24390f0' ) ); ?>">
+							<span class="mwp-help"><?php esc_html_e( 'Contact Form 7 ID shown on Polish package pages.', 'multiwander-packages' ); ?></span>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="mwp_cf7_en"><?php esc_html_e( 'Enquiry form (English)', 'multiwander-packages' ); ?></label></th>
+						<td>
+							<input type="text" id="mwp_cf7_en" name="mwp_cf7_en" class="regular-text"
+								value="<?php echo esc_attr( get_option( 'mwp_cf7_en', '4033794' ) ); ?>">
+							<span class="mwp-help"><?php esc_html_e( 'Contact Form 7 ID shown on English package pages.', 'multiwander-packages' ); ?></span>
+						</td>
+					</tr>
+				</table>
+				<p>
+					<button class="button button-primary" name="mwp_save_sync" value="1"><?php esc_html_e( 'Save', 'multiwander-packages' ); ?></button>
+				</p>
+			</form>
+
+			<p>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=mwp_sync_all' ), 'mwp_sync_all' ) ); ?>">
+					<?php esc_html_e( 'Refresh packages now', 'multiwander-packages' ); ?>
+				</a>
+				<span class="mwp-help"><?php esc_html_e( 'Runs one batch immediately, starting from the first country page.', 'multiwander-packages' ); ?></span>
+			</p>
 
 			<hr>
 

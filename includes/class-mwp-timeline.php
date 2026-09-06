@@ -84,9 +84,7 @@ class MWP_Timeline {
 		}
 
 		// --- Destinations --------------------------------------------
-		$stop = 0;
 		foreach ( $d['destinations'] as $dest ) {
-			$stop++;
 			$nights = max( 0, (int) $dest['to_day'] - (int) $dest['from_day'] );
 
 			$meta = array();
@@ -103,7 +101,7 @@ class MWP_Timeline {
 			$items[] = array(
 				'day'    => max( 1, (int) $dest['from_day'] ),
 				'kind'   => 'place',
-				'title'  => $stop . '. ' . $dest['name'],
+				'title'  => $dest['name'],
 				'badge'  => $t( 'Pobyt od', 'Stay from' ),
 				'lead'   => '',
 				'meta'   => $meta,

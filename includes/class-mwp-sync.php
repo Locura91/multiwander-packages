@@ -232,6 +232,7 @@ class MWP_Sync {
 		$this->apply_page_template( $post_id );
 		$this->hide_theme_header( $post_id );
 		MWP_SEO::maybe_set_title( $post_id, $data, $lang );
+		MWP_SEO::maybe_set_focus_keyphrase( $post_id, $data, $lang );
 		MWP_SEO::maybe_set_meta_description( $post_id, $data, $lang );
 		$this->maybe_set_featured_image( $post_id, $data );
 

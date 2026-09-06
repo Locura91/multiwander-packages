@@ -10,8 +10,8 @@
  */
 
 .mwp {
-	--mwp-accent: var(--cta-button-bg, #c2410c);
-	--mwp-accent-hover: var(--cta-button-hover, #9a3412);
+	--mwp-accent: var(--mwp-brand, #17a398);
+	--mwp-accent-hover: var(--mwp-brand-dark, #128a81);
 	--mwp-accent-text: var(--cta-button-text, #fff);
 	--mwp-radius: var(--cta-button-border-radius, 8px);
 	--mwp-shadow: var(--box-shadow, 0 4px 8px rgba(0, 0, 0, .1));
@@ -23,15 +23,20 @@
 	--mwp-line: var(--border-color, #ddd);
 	--mwp-surface: var(--white, #fff);
 	--mwp-tint: var(--bg-color, #e8f6f3);
-	/* One accent across the plugin: the theme's own CTA colour, so the cards,
-	   chips and buttons match the rest of the site rather than approximating it. */
-	--mwp-card-accent: var(--cta-button-bg, #c2410c);
-	--mwp-card-accent-dark: var(--cta-button-hover, #9a3412);
+	/* Travel Compositor's turquoise, not the site's orange.
+	   These pages hand the visitor straight over to the booking engine, and a
+	   colour change at that moment reads as arriving somewhere else. Matching
+	   it keeps the journey feeling like one platform.
+	   Override site-wide by redefining --mwp-brand in the child theme. */
+	--mwp-brand: #17a398;
+	--mwp-brand-dark: #128a81;
+	--mwp-card-accent: var(--mwp-brand);
+	--mwp-card-accent-dark: var(--mwp-brand-dark);
 	--mwp-card-border: #e7e5e1;
 	--mwp-card-ink: #33373f;
 	--mwp-card-muted: #767a80;
-	--mwp-teal: var(--cta-button-bg, #c2410c);
-	--mwp-teal-dark: var(--cta-button-hover, #9a3412);
+	--mwp-teal: var(--mwp-brand);
+	--mwp-teal-dark: var(--mwp-brand-dark);
 	--mwp-ink-chip: #2b3440;
 	--mwp-head: 'Poppins', sans-serif;   /* as style.css */
 	--mwp-body: 'Jost', sans-serif;      /* as style.css */
@@ -1648,4 +1653,229 @@
 		margin-top: 34px;
 		padding-top: 28px;
 	}
+}
+
+/* =================================================================
+   Collapsed descriptions
+   =================================================================
+   The clamp is only applied once the script adds .is-clamped, so with
+   JavaScript off the full text is shown rather than cut off with no
+   way to reach the rest.
+   ================================================================= */
+
+.mwp-item-text.is-clamped {
+	display: -webkit-box;
+	-webkit-line-clamp: 1;
+	line-clamp: 1;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* A clamped block collapses its inner paragraph margins, otherwise the one
+   visible line sits oddly high in its own box. */
+.mwp-item-text.is-clamped p {
+	margin: 0;
+	display: inline;
+}
+
+.mwp-more {
+	display: inline-block;
+	margin-top: 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--cta-button-bg, #c2410c);
+	font-family: var(--mwp-head);
+	font-size: 0.875rem;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.mwp-more:hover,
+.mwp-more:focus {
+	color: var(--cta-button-hover, #9a3412);
+}
+
+/* =================================================================
+   Travel Compositor turquoise
+   =================================================================
+   The buttons no longer borrow the theme's .cta-button class, because
+   these pages lead directly into the booking engine and should not
+   change colour at the handover. Shape still follows style.css —
+   the theme's radius, padding rhythm and Poppins weight.
+   ================================================================= */
+
+.mwp-pill,
+.mwp-btn-primary {
+	display: inline-block;
+	padding: var(--cta-button-padding, 12px 24px);
+	border-radius: var(--cta-button-border-radius, 8px);
+	border: 1px solid transparent;
+	background: var(--mwp-brand, #17a398);
+	color: #fff;
+	font-family: var(--mwp-head);
+	font-weight: 600;
+	font-size: .95rem;
+	line-height: 1.2;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background .2s ease, transform .2s ease;
+}
+
+.mwp-pill {
+	padding: 10px 20px;
+	font-size: .9rem;
+}
+
+.mwp-card:hover .mwp-pill,
+.mwp-card-link:focus .mwp-pill,
+.mwp-pill:hover,
+.mwp-btn-primary:hover,
+.mwp-btn-primary:focus {
+	background: var(--mwp-brand-dark, #128a81);
+	color: #fff;
+}
+
+.mwp-btn:hover,
+.mwp-btn:focus {
+	border-color: var(--mwp-brand, #17a398);
+	color: var(--mwp-brand-dark, #128a81);
+	background: rgba(23, 163, 152, .06);
+}
+
+.mwp-more,
+.mwp-more:hover,
+.mwp-more:focus {
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp-chip,
+.mwp-eyebrow,
+.mwp-ribbon,
+.mwp-head .mwp-eyebrow {
+	background: var(--mwp-brand, #17a398);
+	color: #fff;
+}
+
+.mwp-head .mwp-eyebrow {
+	background: rgba(23, 163, 152, .12);
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp-item-flight .mwp-chip {
+	background: #2b3440;   /* transport days stay dark, as in the brochure */
+}
+
+.mwp-themes li,
+.mwp-tags li,
+.mwp-includes li {
+	background: rgba(23, 163, 152, .1);
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp-includes b,
+.mwp-kicker,
+.mwp-stop::before {
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp-stop::before {
+	background: var(--mwp-brand, #17a398);
+	color: #fff;
+}
+
+.mwp-slider-nav,
+.mwp-dot:hover,
+.mwp-dot.is-active {
+	--mwp-nav: var(--mwp-brand, #17a398);
+}
+
+/* =================================================================
+   Enquiry form
+   ================================================================= */
+
+.mwp-enquiry {
+	padding: 30px 26px;
+	border-radius: 12px;
+	background: rgba(23, 163, 152, .06);
+}
+
+.mwp-enquiry > h2 {
+	margin-bottom: 4px;
+}
+
+.mwp-form {
+	max-width: 640px;
+	margin: 0 auto;
+}
+
+/* Contact Form 7 renders bare inputs; give them the same shape as the rest. */
+.mwp-form input[type="text"],
+.mwp-form input[type="email"],
+.mwp-form input[type="tel"],
+.mwp-form input[type="date"],
+.mwp-form input[type="number"],
+.mwp-form select,
+.mwp-form textarea {
+	width: 100%;
+	padding: 12px 14px;
+	border: 1px solid var(--border-color, #ddd);
+	border-radius: var(--cta-button-border-radius, 8px);
+	background: #fff;
+	font-family: var(--mwp-body);
+	font-size: 1rem;
+	box-sizing: border-box;
+}
+
+.mwp-form input:focus,
+.mwp-form select:focus,
+.mwp-form textarea:focus {
+	outline: none;
+	border-color: var(--mwp-brand, #17a398);
+	box-shadow: 0 0 0 3px rgba(23, 163, 152, .15);
+}
+
+.mwp-form label {
+	display: block;
+	margin-bottom: 12px;
+	font-size: .92rem;
+	font-weight: 500;
+}
+
+.mwp-form textarea {
+	min-height: 130px;
+	resize: vertical;
+}
+
+.mwp-form input[type="submit"],
+.mwp-form .wpcf7-submit {
+	width: auto;
+	padding: 14px 32px;
+	border: 0;
+	border-radius: var(--cta-button-border-radius, 8px);
+	background: var(--mwp-brand, #17a398);
+	color: #fff;
+	font-family: var(--mwp-head);
+	font-weight: 600;
+	font-size: 1rem;
+	cursor: pointer;
+	transition: background .2s ease;
+}
+
+.mwp-form input[type="submit"]:hover,
+.mwp-form .wpcf7-submit:hover {
+	background: var(--mwp-brand-dark, #128a81);
+}
+
+.mwp-form .wpcf7-spinner {
+	vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+	.mwp-enquiry { padding: 22px 16px; }
+	.mwp-form input[type="submit"],
+	.mwp-form .wpcf7-submit { width: 100%; }
 }

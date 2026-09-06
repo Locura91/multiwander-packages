@@ -346,6 +346,81 @@ class MWP_SEO {
 	}
 
 	/**
+	 * Set Yoast's focus keyphrase from the package title.
+	 *
+	 * A keyphrase is not a title: Yoast scores a long one badly and its whole
+	 * analysis stops being useful. So the core of the title is used — the part
+	 * before the colon, which on these packages is the actual subject
+	 * ("Wietnam & Kambodża: od Hanoi po Angkor Wat" gives "Wietnam Kambodża").
+	 * Where there is no colon, the first few words are taken instead.
+	 *
+	 * Never overwrites a keyphrase an editor has set by hand.
+	 *
+	 * @param int    $post_id Post.
+	 * @param array  $data    Payload.
+	 * @param string $lang    Language slug.
+	 * @return void
+	 */
+	public static function maybe_set_focus_keyphrase( $post_id, array $data, $lang = 'pl' ) {
+		if ( get_post_meta( $post_id, '_yoast_wpseo_focuskw', true ) ) {
+			return;
+		}
+
+		$title = trim( $data['title'] );
+		if ( '' === $title ) {
+			return;
+		}
+
+		// Everything before the first colon, dash or pipe is the subject.
+		$core = preg_split( '/\s*[:|–—-]\s*/u', $title, 2 );
+		$core = trim( $core[0] );
+
+		if ( '' === $core ) {
+			$core = $title;
+		}
+
+		// "Wietnam & Kambodża" -> "Wietnam Kambodża": ampersands and stray
+		// punctuation only dilute the match.
+		$core = str_replace( array( '&', '+' ), ' ', $core );
+		$core = preg_replace( '/[^\p{L}\p{N}\s]/u', '', $core );
+		$core = trim( preg_replace( '/\s+/u', ' ', $core ) );
+
+		// Drop a leading trip length. "11 Days Jewels of Thailand" is searched
+		// for as "Jewels of Thailand"; nobody types the day count.
+		$core = preg_replace(
+			'/^\d+\s+(days?|dni|dnia|nights?|nocy|noce)\s+/iu',
+			'',
+			$core
+		);
+
+		// Keep it to a phrase. Yoast's own guidance is roughly four words.
+		$words = preg_split( '/\s+/u', trim( $core ) );
+		if ( count( $words ) > 4 ) {
+			$words = array_slice( $words, 0, 4 );
+		}
+
+		// Never end on a connecting word — truncating "Jewels of Thailand" to
+		// "Jewels of" leaves a keyphrase that matches nothing.
+		$connectors = array(
+			'of', 'the', 'and', 'to', 'from', 'in', 'with', 'a', 'an', 'for', 'by',
+			'od', 'do', 'po', 'przez', 'i', 'w', 'na', 'z', 'za', 'oraz', 'ze',
+		);
+		while ( $words && in_array( mb_strtolower( end( $words ) ), $connectors, true ) ) {
+			array_pop( $words );
+		}
+
+		$core = implode( ' ', $words );
+
+		if ( '' === $core ) {
+			return;
+		}
+
+		$keyphrase = (string) apply_filters( 'mwp_focus_keyphrase', $core, $post_id, $data, $lang );
+
+		update_post_meta( $post_id, '_yoast_wpseo_focuskw', $keyphrase );
+	}
+
+	/**
 	 * Build a meta description for a freshly synced package.
 	 *
 	 * Written once, on creation, and never over an existing value — an editor
@@ -362,37 +437,41 @@ class MWP_SEO {
 			return;
 		}
 
-		$en    = ( 'en' === $lang );
-		$stops = wp_list_pluck( $data['destinations'], 'name' );
-		$price = mwp_format_price( $data['price'], $lang );
+		// The package's own description is the meta description: it is written
+		// by a human, it is already in the right language, and it describes the
+		// trip better than anything assembled from fields.
+		$description = self::plain_description( $data, 155 );
 
-		$parts = array();
-
-		if ( $data['duration']['days'] && $stops ) {
-			$parts[] = sprintf(
-				$en ? '%1$d-day trip through %2$s.' : '%1$d-dniowa podróż przez %2$s.',
-				$data['duration']['days'],
-				implode( ', ', array_slice( $stops, 0, 3 ) )
-			);
-		}
-
-		if ( $price['value'] ) {
-			$parts[] = sprintf(
-				$en ? 'From %1$s %2$s per person, flights included.' : 'Już od %1$s %2$s za osobę, z przelotem.',
-				$price['value'],
-				$price['symbol']
-			);
-		}
-
-		$parts[] = $en
-			? 'Fully customisable — change dates, hotels and departure airport.'
-			: 'W pełni elastyczna — zmień terminy, hotele i lotnisko wylotu.';
-
-		$description = trim( implode( ' ', $parts ) );
-
-		// Fall back to the package's own copy if we somehow built nothing.
+		// Only when a package has no description of its own is one built from
+		// the structured data, so the page never ships without one.
 		if ( '' === $description ) {
-			$description = self::plain_description( $data, 155 );
+			$en    = ( 'en' === $lang );
+			$stops = wp_list_pluck( $data['destinations'], 'name' );
+			$price = mwp_format_price( $data['price'], $lang );
+
+			$parts = array();
+
+			if ( $data['duration']['days'] && $stops ) {
+				$parts[] = sprintf(
+					$en ? '%1$d-day trip through %2$s.' : '%1$d-dniowa podróż przez %2$s.',
+					$data['duration']['days'],
+					implode( ', ', array_slice( $stops, 0, 3 ) )
+				);
+			}
+
+			if ( $price['value'] ) {
+				$parts[] = sprintf(
+					$en ? 'From %1$s %2$s per person, flights included.' : 'Już od %1$s %2$s za osobę, z przelotem.',
+					$price['value'],
+					$price['symbol']
+				);
+			}
+
+			$parts[] = $en
+				? 'Fully customisable — change dates, hotels and departure airport.'
+				: 'W pełni elastyczna — zmień terminy, hotele i lotnisko wylotu.';
+
+			$description = trim( implode( ' ', $parts ) );
 		}
 
 		if ( '' !== $description ) {

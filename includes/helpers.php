@@ -312,6 +312,31 @@ function mwp_booking_url( array $data, $lang = 'pl' ) {
 }
 
 /**
+ * The Contact Form 7 form for a language.
+ *
+ * The Polish page must show the Polish form and the English page the English
+ * one — a Polish enquiry arriving through the English form is worse than no
+ * form at all, because nobody notices.
+ *
+ * The theme's own hidden `your-referrer` field records which page the enquiry
+ * came from, so no extra tracking is needed here.
+ *
+ * @param string $lang Language slug.
+ * @return string Form ID, or '' when none is configured for that language.
+ */
+function mwp_contact_form_id( $lang = 'pl' ) {
+	$defaults = array(
+		'pl' => '24390f0',   // "Polish Travel Inquiery"
+		'en' => '4033794',   // "ENG Travel Inquiery"
+	);
+
+	$stored = get_option( 'mwp_cf7_' . $lang, '' );
+	$id     = $stored ? $stored : ( isset( $defaults[ $lang ] ) ? $defaults[ $lang ] : '' );
+
+	return (string) apply_filters( 'mwp_contact_form_id', $id, $lang );
+}
+
+/**
  * Where the "request advice" button goes.
  *
  * Defaults to the site's own contact page in the current language so the

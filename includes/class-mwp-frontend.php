@@ -60,6 +60,17 @@ class MWP_Frontend {
 			MWPP_asset_version( 'assets/front.css' )
 		);
 
+		// The "see more" expander only exists on package pages.
+		if ( $is_package ) {
+			wp_enqueue_script(
+				'mwp-front',
+				MWP_URL . 'assets/front.js',
+				array(),
+				MWPP_asset_version( 'assets/front.js' ),
+				true
+			);
+		}
+
 		// The slider script is only worth its bytes where a slider exists.
 		// With the automatic layout the shape is only known at render time, so
 		// load the tiny slider script whenever a slider is possible.
@@ -314,7 +325,7 @@ class MWP_Frontend {
 							<span></span>
 						<?php endif; ?>
 
-						<span class="cta-button mwp-pill"><?php echo esc_html( $en ? 'View' : 'Zobacz' ); ?></span>
+						<span class="mwp-pill"><?php echo esc_html( $en ? 'View' : 'Zobacz' ); ?></span>
 					</div>
 				</div>
 			</a>
@@ -494,16 +505,15 @@ class MWP_Frontend {
 					<div class="mwp-pricecard">
 						<?php if ( $booking ) : ?>
 							<div class="mwp-actions">
-								<a class="cta-button mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<a class="mwp-btn mwp-btn-primary" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 									<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
 								</a>
 								<a class="mwp-btn" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 									<?php echo esc_html( $t( 'Dostosuj podróż', 'Configure this trip' ) ); ?>
 								</a>
-								<?php $enquiry = mwp_enquiry_url( $lang ); ?>
-								<?php if ( $enquiry ) : ?>
-									<a class="mwp-btn" href="<?php echo esc_url( $enquiry ); ?>">
-										<?php echo esc_html( $t( 'Zapytaj o ofertę', 'Request advice' ) ); ?>
+								<?php if ( mwp_contact_form_id( $lang ) ) : ?>
+									<a class="mwp-btn" href="#mwp-enquiry">
+										<?php echo esc_html( $t( 'Zamów plan podróży', 'Request my tailor-made plan' ) ); ?>
 									</a>
 								<?php endif; ?>
 							</div>
@@ -668,7 +678,9 @@ class MWP_Frontend {
 												<?php endif; ?>
 
 												<?php if ( ! empty( $item['body'] ) ) : ?>
-													<div class="mwp-item-text mwp-prose"><?php echo wp_kses_post( $item['body'] ); ?></div>
+													<div class="mwp-item-text mwp-prose" data-mwp-more
+														data-more="<?php echo esc_attr( $t( 'Zobacz więcej', 'See more' ) ); ?>"
+														data-less="<?php echo esc_attr( $t( 'Zwiń', 'Show less' ) ); ?>"><?php echo wp_kses_post( $item['body'] ); ?></div>
 												<?php endif; ?>
 											</div>
 										</div>
@@ -712,13 +724,31 @@ class MWP_Frontend {
 						</section>
 					<?php endif; ?>
 
+					<?php $form_id = mwp_contact_form_id( $lang ); ?>
+					<?php if ( $form_id ) : ?>
+						<section class="mwp-section mwp-enquiry" id="mwp-enquiry">
+							<h2><?php echo esc_html( $t( 'Zamów swój indywidualny plan podróży', 'Request your tailor-made plan' ) ); ?></h2>
+							<p class="mwp-section-intro">
+								<?php echo esc_html( $t( 'Napisz, czego szukasz — odpowiemy z propozycją dopasowaną do Ciebie.', 'Tell us what you are looking for and we will come back with a plan built around it.' ) ); ?>
+							</p>
+							<div class="mwp-form">
+								<?php
+								// The theme adds a hidden your-referrer field to every
+								// CF7 form, so the enquiry arrives with the package
+								// page it was sent from.
+								echo do_shortcode( '[contact-form-7 id="' . esc_attr( $form_id ) . '"]' );
+								?>
+							</div>
+						</section>
+					<?php endif; ?>
+
 					<section class="mwp-final">
 						<h2><?php echo esc_html( $t( 'Ta podróż, po Twojemu', 'Make this trip yours' ) ); ?></h2>
 						<p>
 							<?php echo esc_html( $t( 'Zmień terminy, hotele, lotnisko wylotu i długość pobytu w każdym miejscu. Sprawdź aktualną cenę i dostępność w kilka sekund.', 'Change the dates, the hotels, your departure airport and how long you stay in each place. Check live pricing and availability in seconds.' ) ); ?>
 						</p>
 						<?php if ( $booking ) : ?>
-							<a class="cta-button mwp-btn mwp-btn-primary mwp-btn-wide" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+							<a class="mwp-btn mwp-btn-primary mwp-btn-wide" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 								<?php echo esc_html( $t( 'Zarezerwuj teraz', 'Book now' ) ); ?>
 							</a>
 						<?php endif; ?>
