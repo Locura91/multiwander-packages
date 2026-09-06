@@ -1879,3 +1879,123 @@
 	.mwp-form input[type="submit"],
 	.mwp-form .wpcf7-submit { width: 100%; }
 }
+
+/* =================================================================
+   Winning against the theme
+   =================================================================
+   This file now loads after the child theme, but a few of the theme's
+   rules are specific enough to still win. These are written to beat
+   them without !important: `.mwp` plus the element name is enough.
+
+   Only the plugin's own structural lists are reset. Lists inside
+   Travel Compositor's copy — the "included / not included" bullets —
+   keep their markers, because there they are the content.
+   ================================================================= */
+
+.mwp ul.mwp-tags,
+.mwp ul.mwp-themes,
+.mwp ul.mwp-includes,
+.mwp ul.mwp-facts,
+.mwp ul.mwp-chips,
+.mwp ul.mwp-hotels,
+.mwp ul.mwp-flights,
+.mwp ol.mwp-plan-list,
+.mwp ol.mwp-route {
+	list-style: none;
+	list-style-type: none;
+	margin-left: 0;
+	padding-left: 0;
+}
+
+.mwp ul.mwp-tags > li,
+.mwp ul.mwp-themes > li,
+.mwp ul.mwp-includes > li,
+.mwp ul.mwp-facts > li,
+.mwp ul.mwp-chips > li,
+.mwp ul.mwp-hotels > li,
+.mwp ul.mwp-flights > li,
+.mwp ol.mwp-plan-list > li,
+.mwp ol.mwp-route > li {
+	list-style: none;
+	list-style-type: none;
+}
+
+/* Some themes draw the marker with a pseudo-element rather than list-style. */
+.mwp ul.mwp-tags > li::marker,
+.mwp ul.mwp-themes > li::marker,
+.mwp ul.mwp-includes > li::marker,
+.mwp ul.mwp-facts > li::marker,
+.mwp ul.mwp-chips > li::marker,
+.mwp ul.mwp-hotels > li::marker,
+.mwp ul.mwp-flights > li::marker,
+.mwp ol.mwp-plan-list > li::marker,
+.mwp ol.mwp-route > li::marker {
+	content: '';
+}
+
+.mwp ol.mwp-plan-list > li::before,
+.mwp ul.mwp-tags > li::before,
+.mwp ul.mwp-themes > li::before,
+.mwp ul.mwp-includes > li::before,
+.mwp ul.mwp-hotels > li::before,
+.mwp ul.mwp-flights > li::before {
+	content: none;
+	display: none;
+}
+
+/* --- Buttons: force the contrast the theme's link colour was stealing --- */
+
+.mwp a.mwp-btn-primary,
+.mwp a.mwp-btn-primary:visited,
+.mwp .mwp-card .mwp-pill {
+	background: var(--mwp-brand, #17a398);
+	color: #fff;
+	text-decoration: none;
+}
+
+.mwp a.mwp-btn-primary:hover,
+.mwp a.mwp-btn-primary:focus,
+.mwp .mwp-card:hover .mwp-pill {
+	background: var(--mwp-brand-dark, #128a81);
+	color: #fff;
+}
+
+.mwp a.mwp-btn,
+.mwp a.mwp-btn:visited {
+	color: var(--text-darker, #111827);
+	text-decoration: none;
+}
+
+.mwp a.mwp-btn:hover,
+.mwp a.mwp-btn:focus {
+	color: var(--mwp-brand-dark, #128a81);
+}
+
+/* The primary sits in a stacked column, so it fills the width like its
+   outlined siblings rather than shrinking to its text. */
+.mwp .mwp-actions .mwp-btn-primary {
+	display: block;
+	width: 100%;
+}
+
+.mwp .mwp-final .mwp-btn-wide {
+	display: inline-block;
+	width: auto;
+}
+
+/* --- The clamp, at a specificity the theme cannot undo --- */
+
+.mwp .mwp-item-text.is-clamped {
+	display: -webkit-box;
+	-webkit-line-clamp: 1;
+	line-clamp: 1;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.mwp .mwp-item-text.is-clamped p,
+.mwp .mwp-item-text.is-clamped ul,
+.mwp .mwp-item-text.is-clamped ol {
+	margin: 0;
+	display: inline;
+}

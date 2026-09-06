@@ -19,7 +19,11 @@ class MWP_Frontend {
 	public static function init() {
 		add_shortcode( 'multiwander_offers', array( __CLASS__, 'offers_shortcode' ) );
 		add_filter( 'the_content', array( __CLASS__, 'package_content' ), 20 );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
+		// Priority 100: the child theme enqueues its stylesheet at 20, so at the
+		// default 10 this file would load FIRST and lose every specificity tie
+		// to it — which is exactly what turned the buttons turquoise-on-
+		// turquoise and let the theme's list markers show through.
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ), 100 );
 	}
 
 	/**
