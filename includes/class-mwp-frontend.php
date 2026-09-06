@@ -500,6 +500,13 @@ class MWP_Frontend {
 		$booking = mwp_booking_url( $d, $lang );
 		$items   = MWP_Timeline::build( $d, $lang );
 		$adults  = max( 1, (int) $d['counters']['adults'] );
+		$limits  = mwp_booking_limits();
+
+		// A dynamic package has no fixed departures, so offer a sensible date
+		// rather than today — nobody books a two-week trip starting tomorrow.
+		$first_day = $d['departures']['is_empty']
+			? gmdate( 'Y-m-d', time() + 21 * DAY_IN_SECONDS )
+			: $d['departures']['first'];
 		?>
 		<div class="mwp mwp-package">
 
@@ -567,74 +574,16 @@ class MWP_Frontend {
 				<aside class="mwp-aside">
 					<div class="mwp-pricecard">
 						<?php if ( $booking ) : ?>
-							<?php
-							$limits    = mwp_booking_limits();
-							$first_day = $d['departures']['is_empty']
-								? gmdate( 'Y-m-d', time() + 21 * DAY_IN_SECONDS )
-								: $d['departures']['first'];
-							?>
-
-							<div class="mwp-picker"
-								data-mwp-picker
-								data-url="<?php echo esc_url( $booking ); ?>"
-								data-max-pax="<?php echo esc_attr( $limits['max_pax'] ); ?>"
-								data-max-rooms="<?php echo esc_attr( $limits['max_rooms'] ); ?>">
-
-								<label class="mwp-field">
-									<span><?php echo esc_html( $t( 'Data rozpoczęcia', 'Start date' ) ); ?></span>
-									<input type="date" class="mwp-date"
-										value="<?php echo esc_attr( $first_day ); ?>"
-										min="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
-								</label>
-
-								<div class="mwp-field">
-									<span><?php echo esc_html( $t( 'Podróżni i pokoje', 'Travellers & rooms' ) ); ?></span>
-
-									<button type="button" class="mwp-party-toggle" aria-expanded="false">
-										<span class="mwp-party-summary"></span>
-										<span class="mwp-caret" aria-hidden="true">▾</span>
-									</button>
-
-									<div class="mwp-party" hidden>
-										<?php
-										$counters = array(
-											'rooms'    => array( $t( 'Pokoje', 'Rooms' ), $t( 'maks. %d', 'max %d' ), $limits['max_rooms'], 1 ),
-											'adults'   => array( $t( 'Dorośli', 'Adults' ), '18+', $limits['max_adults'], 2 ),
-											'children' => array( $t( 'Dzieci', 'Children' ), '0–17', $limits['max_children'], 0 ),
-										);
-										?>
-										<?php foreach ( $counters as $key => $row ) : ?>
-											<div class="mwp-counter" data-counter="<?php echo esc_attr( $key ); ?>">
-												<span class="mwp-counter-label">
-													<b><?php echo esc_html( $row[0] ); ?></b>
-													<small><?php echo esc_html( false !== strpos( $row[1], '%d' ) ? sprintf( $row[1], $row[2] ) : $row[1] ); ?></small>
-												</span>
-												<span class="mwp-counter-controls">
-													<button type="button" class="mwp-minus" aria-label="−">&minus;</button>
-													<output class="mwp-value"><?php echo esc_html( $row[3] ); ?></output>
-													<button type="button" class="mwp-plus" aria-label="+">+</button>
-												</span>
-											</div>
-										<?php endforeach; ?>
-
-										<p class="mwp-party-note">
-											<?php echo esc_html( sprintf( $t( 'Maksymalnie %1$d osób i %2$d pokoje.', 'Up to %1$d travellers and %2$d rooms.' ), $limits['max_pax'], $limits['max_rooms'] ) ); ?>
-										</p>
-
-										<button type="button" class="mwp-btn mwp-btn-primary mwp-party-done">
-											<?php echo esc_html( $t( 'Akceptuję', 'Done' ) ); ?>
-										</button>
-									</div>
-								</div>
-							</div>
-
 							<div class="mwp-actions">
-								<a class="mwp-btn mwp-btn-primary mwp-book" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<button type="button" class="mwp-btn mwp-btn-primary mwp-open-picker"
+									data-target="mwp-picker-<?php echo esc_attr( $post_id ); ?>">
 									<?php echo esc_html( $t( 'Sprawdź i zarezerwuj', 'Check & book' ) ); ?>
-								</a>
+								</button>
+
 								<a class="mwp-btn mwp-book" href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
 									<?php echo esc_html( $t( 'Dostosuj podróż', 'Configure this trip' ) ); ?>
 								</a>
+
 								<?php if ( mwp_contact_form_id( $lang ) ) : ?>
 									<a class="mwp-btn" href="#mwp-enquiry">
 										<?php echo esc_html( $t( 'Zamów plan podróży', 'Request my tailor-made plan' ) ); ?>
@@ -886,6 +835,93 @@ class MWP_Frontend {
 
 				</div>
 			</div>
+
+			<?php if ( $booking ) : ?>
+				<!--
+					The same question the booking engine asks on arrival — start
+					date and party size — asked here instead, and presented as an
+					overlay so it reads as one continuous flow rather than a
+					second form appearing after the visitor has already left.
+				-->
+				<div class="mwp-modal" id="mwp-picker-<?php echo esc_attr( $post_id ); ?>" hidden
+					role="dialog" aria-modal="true"
+					aria-label="<?php echo esc_attr( $t( 'Wybierz datę rozpoczęcia podróży', 'Choose your start date' ) ); ?>">
+
+					<div class="mwp-modal-backdrop" data-mwp-close></div>
+
+					<div class="mwp-modal-panel"
+						data-mwp-picker
+						data-url="<?php echo esc_url( $booking ); ?>"
+						data-max-pax="<?php echo esc_attr( $limits['max_pax'] ); ?>"
+						data-max-rooms="<?php echo esc_attr( $limits['max_rooms'] ); ?>">
+
+						<button type="button" class="mwp-modal-close" data-mwp-close
+							aria-label="<?php esc_attr_e( 'Close', 'multiwander-packages' ); ?>">&times;</button>
+
+						<h2 class="mwp-modal-title">
+							<?php echo esc_html( $t( 'Wybierz datę rozpoczęcia podróży', 'Choose your start date' ) ); ?>
+						</h2>
+
+						<div class="mwp-modal-row">
+							<label class="mwp-field">
+								<span><?php echo esc_html( $t( 'Data rozpoczęcia', 'Start date' ) ); ?></span>
+								<input type="date" class="mwp-date"
+									value="<?php echo esc_attr( $first_day ); ?>"
+									min="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
+							</label>
+
+							<div class="mwp-field">
+								<span><?php echo esc_html( $t( 'Liczba: pasażerów i pokoi', 'Travellers & rooms' ) ); ?></span>
+
+								<button type="button" class="mwp-party-toggle" aria-expanded="false">
+									<span class="mwp-party-summary"></span>
+									<span class="mwp-caret" aria-hidden="true">&#9662;</span>
+								</button>
+
+								<div class="mwp-party" hidden>
+									<?php
+									$counters = array(
+										'rooms'    => array( $t( 'Pokoje', 'Rooms' ), sprintf( $t( 'maks. %d', 'max %d' ), $limits['max_rooms'] ), 1 ),
+										'adults'   => array( $t( 'Dorośli', 'Adults' ), $t( '18+ lat', '18+ years' ), 2 ),
+										'children' => array( $t( 'Dzieci', 'Children' ), $t( '0 – 17 lat', '0 – 17 years' ), 0 ),
+									);
+									?>
+									<?php foreach ( $counters as $key => $row ) : ?>
+										<div class="mwp-counter" data-counter="<?php echo esc_attr( $key ); ?>">
+											<span class="mwp-counter-label">
+												<b><?php echo esc_html( $row[0] ); ?></b>
+												<small><?php echo esc_html( $row[1] ); ?></small>
+											</span>
+											<span class="mwp-counter-controls">
+												<button type="button" class="mwp-minus" aria-label="&minus;">&minus;</button>
+												<output class="mwp-value"><?php echo esc_html( $row[2] ); ?></output>
+												<button type="button" class="mwp-plus" aria-label="+">+</button>
+											</span>
+										</div>
+									<?php endforeach; ?>
+
+									<p class="mwp-party-note">
+										<?php echo esc_html( sprintf( $t( 'Maksymalnie %1$d osób i %2$d pokoje.', 'Up to %1$d travellers and %2$d rooms.' ), $limits['max_pax'], $limits['max_rooms'] ) ); ?>
+									</p>
+
+									<button type="button" class="mwp-btn mwp-btn-primary mwp-party-done">
+										<?php echo esc_html( $t( 'Akceptuję', 'Done' ) ); ?>
+									</button>
+								</div>
+							</div>
+
+							<a class="mwp-btn mwp-btn-primary mwp-search mwp-book"
+								href="<?php echo esc_url( $booking ); ?>" target="_blank" rel="noopener">
+								<?php echo esc_html( $t( 'Szukaj', 'Search' ) ); ?>
+							</a>
+						</div>
+
+						<p class="mwp-modal-note">
+							<?php echo esc_html( $t( 'Terminy, hotele i lotnisko wylotu możesz zmienić w kolejnym kroku.', 'Dates, hotels and departure airport can all be changed in the next step.' ) ); ?>
+						</p>
+					</div>
+				</div>
+			<?php endif; ?>
 
 		</div>
 		<?php

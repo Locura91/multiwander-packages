@@ -242,11 +242,80 @@
 		paint();
 	}
 
+	/**
+	 * Opening and closing the overlay.
+	 *
+	 * Focus moves into the panel on open and back to the button on close, and
+	 * the page behind is locked so the modal is the only thing that scrolls —
+	 * the small courtesies that separate a dialog from a floating div.
+	 */
+	function wireModals() {
+		var opener = document.querySelectorAll( '.mwp-open-picker' );
+		var lastFocus = null;
+
+		function open( modal, trigger ) {
+			lastFocus = trigger || null;
+			modal.hidden = false;
+			document.body.style.overflow = 'hidden';
+
+			var focusable = modal.querySelector( '.mwp-date, button, a' );
+			if ( focusable ) {
+				focusable.focus();
+			}
+		}
+
+		function close( modal ) {
+			modal.hidden = true;
+			document.body.style.overflow = '';
+			if ( lastFocus ) {
+				lastFocus.focus();
+				lastFocus = null;
+			}
+		}
+
+		for ( var i = 0; i < opener.length; i++ ) {
+			opener[ i ].addEventListener( 'click', function ( e ) {
+				var modal = document.getElementById( e.currentTarget.dataset.target );
+				if ( modal ) {
+					open( modal, e.currentTarget );
+				}
+			} );
+		}
+
+		document.addEventListener( 'click', function ( e ) {
+			var closer = e.target.closest( '[data-mwp-close]' );
+			if ( ! closer ) {
+				return;
+			}
+			var modal = closer.closest( '.mwp-modal' );
+			if ( modal ) {
+				close( modal );
+			}
+		} );
+
+		document.addEventListener( 'keydown', function ( e ) {
+			if ( 'Escape' !== e.key ) {
+				return;
+			}
+			var open_modals = document.querySelectorAll( '.mwp-modal:not([hidden])' );
+			for ( var j = 0; j < open_modals.length; j++ ) {
+				// The traveller panel closes first; a second Escape closes the
+				// modal, which is what people expect from nested popovers.
+				var party = open_modals[ j ].querySelector( '.mwp-party' );
+				if ( party && ! party.hidden ) {
+					continue;
+				}
+				close( open_modals[ j ] );
+			}
+		} );
+	}
+
 	function initPickers() {
 		var pickers = document.querySelectorAll( '[data-mwp-picker]' );
 		for ( var i = 0; i < pickers.length; i++ ) {
 			setup( pickers[ i ] );
 		}
+		wireModals();
 	}
 
 	if ( 'loading' === document.readyState ) {

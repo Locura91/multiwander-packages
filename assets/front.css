@@ -2160,3 +2160,176 @@ body.mwp-package-page h1.entry-title:empty,
 body.mwp-package-page h1.page-title:empty {
 	display: none;
 }
+
+/* =================================================================
+   A shorter hero, so the title is visible on opening
+   =================================================================
+   The collage was tall enough to push the trip name below the fold on
+   a laptop. Capping its height in viewport units keeps the images
+   generous while guaranteeing the title, price and buttons are all
+   there when the page opens.
+   ================================================================= */
+
+.mwp-package {
+	margin-top: 0;
+}
+
+.mwp .mwp-collage {
+	height: clamp(220px, 34vh, 380px);
+	gap: 8px;
+	margin-bottom: 18px;
+}
+
+.mwp .mwp-collage .mwp-shot,
+.mwp .mwp-collage .mwp-shot img {
+	height: 100%;
+}
+
+/* Fixed height governs the frame now, so the intrinsic ratios must not
+   fight it. */
+.mwp .mwp-collage .mwp-shot img,
+.mwp .mwp-collage-3 .mwp-shot:first-child img,
+.mwp .mwp-collage-3 .mwp-shot:not(:first-child) img {
+	aspect-ratio: auto;
+	object-fit: cover;
+}
+
+.mwp .mwp-head {
+	margin-bottom: 0;
+}
+
+.mwp .mwp-head .mwp-eyebrow {
+	margin-bottom: 8px;
+}
+
+@media (max-width: 779px) {
+	.mwp .mwp-collage {
+		height: auto;
+	}
+	.mwp .mwp-collage .mwp-shot img {
+		aspect-ratio: 16 / 10;
+	}
+	.mwp .mwp-collage-3 .mwp-shot:not(:first-child) img {
+		aspect-ratio: 16 / 9;
+	}
+}
+
+/* =================================================================
+   Booking overlay
+   =================================================================
+   Mirrors the modal the booking engine opens, so the visitor answers
+   the date and party question once, here, rather than again on arrival.
+   ================================================================= */
+
+.mwp-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 6vh 16px 16px;
+	overflow-y: auto;
+}
+
+.mwp-modal[hidden] {
+	display: none;
+}
+
+.mwp-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(20, 24, 28, .55);
+}
+
+.mwp-modal-panel {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	max-width: 940px;
+	padding: 30px 30px 24px;
+	border-radius: 14px;
+	background: #fff;
+	box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .45);
+}
+
+.mwp-modal-close {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: #eef1f3;
+	color: #333;
+	font-size: 1.3rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: background .2s ease;
+}
+
+.mwp-modal-close:hover {
+	background: #e2e6e9;
+}
+
+.mwp-modal-title {
+	margin: 0 0 20px;
+	font-family: var(--mwp-head);
+	font-size: 1.3rem;
+	font-weight: 600;
+	text-align: left;
+	color: var(--text-darker, #111827);
+}
+
+.mwp-modal-row {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px;
+	align-items: end;
+}
+
+@media (min-width: 720px) {
+	.mwp-modal-row {
+		grid-template-columns: 1.1fr 1.1fr auto;
+	}
+}
+
+.mwp-modal-row .mwp-field > span {
+	font-size: .82rem;
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: 500;
+	color: var(--text-dark, #1f2937);
+}
+
+.mwp .mwp-search {
+	width: 100%;
+	padding: 12px 40px;
+	white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+	.mwp .mwp-search {
+		width: auto;
+	}
+}
+
+.mwp-modal-note {
+	margin: 18px 0 0;
+	font-size: .84rem;
+	color: var(--mwp-muted);
+}
+
+@media (max-width: 600px) {
+	.mwp-modal {
+		padding: 0;
+		align-items: stretch;
+	}
+	.mwp-modal-panel {
+		border-radius: 0;
+		min-height: 100%;
+		padding: 26px 18px 22px;
+	}
+}
